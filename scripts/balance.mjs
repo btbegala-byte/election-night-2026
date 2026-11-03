@@ -25,7 +25,7 @@ const BASE = {
 
 function load() {
   const b = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE)) : {};
-  return { ...BASE, called: b.called || { senate: { D: 0, R: 0, I: 0 }, house: { D: 0, R: 0, I: 0 } }, live: b.live || {}, sources: b.sources || [],
+  return { ...BASE, called: b.called || { senate: { D: 0, R: 0, I: 0 }, house: { D: 0, R: 0, I: 0 } }, live: b.live || {}, pickups: b.pickups || {}, sources: b.sources || [],
     updated_at: b.updated_at || null, checked_at: b.checked_at || null, log: b.log || [] };
 }
 function callClaude(prompt, timeoutMs = 360000) {
@@ -67,13 +67,15 @@ async function main() {
   const prompt = `It is election night, November 3, 2026, about ${et} ET. Use web search to find the CURRENT nationwide count of called races for the U.S. Senate and the U.S. House.
 
 1. Called races. Count only races a major decision desk (AP, NBC News, CNN, ABC News, CBS News, Fox News, Decision Desk HQ) has projected a winner in TONIGHT. Prefer the AP tally (often carried by news sites' "balance of power" trackers); if you can't find AP's, use another desk's and say which. For the Senate, count only the 35 seats on the ballot this year, NOT the 65 holdover seats. Put independents (e.g. a non-party candidate who wins) under I. If nothing has been called yet, use 0.
-2. Live projections. If a major outlet has published a LIVE election-night projection of final seat totals (for example the NBC News House estimate, Decision Desk HQ's live forecast, or the New York Times estimate), report it. Do not report pre-election forecasts here.
+2. Seats changing hands. Among the races already called, how many seats each party has PICKED UP from the other party (flips), per the same tracker. For the House, count seats as flipped relative to the party that held the seat before the election (trackers usually call these "gains" or "pickups"). Use 0 if none.
+3. Live projections. If a major outlet has published a LIVE election-night projection of final seat totals (for example the NBC News House estimate, Decision Desk HQ's live forecast, or the New York Times estimate), report it. Do not report pre-election forecasts here.
 
 Previous reading (${b.checked_at || 'none'}): Senate called D ${b.called.senate.D}, R ${b.called.senate.R}, I ${b.called.senate.I || 0}; House called D ${b.called.house.D}, R ${b.called.house.R}.
 
 Reply with ONLY this JSON, no other text:
 {"senate_called": {"D": 0, "R": 0, "I": 0}, "house_called": {"D": 0, "R": 0, "I": 0},
  "called_source": {"name": "...", "url": "https://...", "as_of": "time stated on the page, if any"},
+ "pickups": {"senate": {"D": 0, "R": 0}, "house": {"D": 0, "R": 0}},
  "projections": [{"chamber": "house" or "senate", "D": 0, "R": 0, "plus_minus": null or number, "source_name": "...", "source_url": "https://...", "as_of": "..."}],
  "notes": "one short sentence on anything unusual (a retracted call, desks disagreeing), or empty"}
 Every number must come from a page you actually found; include its URL. If you cannot find a figure, keep the previous reading for it and say so in notes.`;
@@ -93,6 +95,15 @@ Every number must come from a page you actually found; include its URL. If you c
     if (changed) b.updated_at = b.checked_at;
   } else entry.rejected = [!okSrc && 'no source URL', !s.ok && s.why, !h.ok && h.why].filter(Boolean);
 
+  // seats changing hands: must be whole numbers no larger than the races called for that party
+  if (okSrc && s.ok && h.ok && r.pickups && typeof r.pickups === 'object') {
+    const pk = {};
+    for (const [ch, cv] of [['senate', s.v], ['house', h.v]]) {
+      const x = r.pickups[ch] || {}, D = int(x.D ?? 0), R = int(x.R ?? 0);
+      if (D != null && R != null && D <= cv.D && R <= cv.R) pk[ch] = { D, R };
+    }
+    if (Object.keys(pk).length) b.pickups = { ...(b.pickups || {}), ...pk };
+  }
   for (const p of Array.isArray(r.projections) ? r.projections : []) {
     const ch = p.chamber === 'senate' ? 'senate' : p.chamber === 'house' ? 'house' : null;
     const D = int(p.D), R = int(p.R);

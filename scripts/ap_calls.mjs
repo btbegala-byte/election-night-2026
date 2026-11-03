@@ -113,7 +113,7 @@ Rules:
 Races:
 ${list}
 
-Return ONLY a JSON object, no prose: {"<id>": {"calls": [{"caller": "<AP|NBC News|CNN|ABC News|CBS News|Fox News|Decision Desk HQ>", "winner": "<name>", "called_at": "<time or null>", "source_url": "<url>", "source_name": "<outlet whose page you're linking>", "evidence": "<10 words max from the source>"}]}}`;
+Return ONLY a JSON object, no prose: {"<id>": {"calls": [{"caller": "<AP|NBC News|CNN|ABC News|CBS News|Fox News|Decision Desk HQ>", "winner": "<name>", "called_at": "<time or null>", "source_url": "<url>", "source_name": "<outlet whose page you're linking>", "evidence": "<10 words max from the source>", "reason": "<one short sentence IN YOUR OWN WORDS on why the desk could call it, e.g. lead size, share counted, where the remaining vote is; null if the source does not say>"}]}}`;
   let reply = null;
   if (DRY) { console.log('AP prompt:\n' + prompt); return; }
   try { reply = parseJSON(await callClaude(prompt, ['--allowedTools', 'WebSearch', 'WebFetch'], 420000)); }
@@ -132,7 +132,7 @@ Return ONLY a JSON object, no prose: {"<id>": {"calls": [{"caller": "<AP|NBC New
       if (!sn.cs.some(x => String(x.name || '').toLowerCase().includes(last))) { ap.log.push({ at, id: r.id, note: `rejected ${caller}: winner "${c.winner}" not a listed candidate` }); continue; }
       const ent = ap.calls[r.id] = ap.calls[r.id] || { winner: c.winner, race: `${r.state} ${r.label || r.name}`, callers: [] };
       if (ent.callers.some(x => x.caller === caller)) continue;
-      ent.callers.push({ caller, winner: c.winner, called_at: c.called_at || null, source_url: c.source_url, source_name: c.source_name || null, evidence: c.evidence || null, found_at: at });
+      ent.callers.push({ caller, winner: c.winner, called_at: c.called_at || null, source_url: c.source_url, source_name: c.source_name || null, evidence: c.evidence || null, reason: typeof c.reason === 'string' ? c.reason.slice(0, 220) : null, found_at: at });
       const winners = new Set(ent.callers.map(x => lastName(x.winner)));
       ent.conflict = winners.size > 1;
       ap.log.push({ at, id: r.id, note: `${caller} call found: ${c.winner}` });

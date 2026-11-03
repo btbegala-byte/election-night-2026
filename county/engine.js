@@ -169,6 +169,7 @@
       share = Math.min(0.97, Math.max(0.03, share));
       const d = (r.live ? r.live.D : 0) + rem * share, rr = (r.live ? r.live.R : 0) + rem * (1 - share);
       pD += d; pR += rr;
+      r.rem = rem; r.remShare = share;
       // projected full-count net votes vs. pace, for emphasis
       const tot = (r.V || 0) + rem;
       r.projShare = tot > 0 ? d / (d + rr) : r.t;
@@ -260,6 +261,13 @@
     for (const r of rows) if (r.live) for (const [k, v] of Object.entries(r.live.ind || {})) indTotals[k] = (indTotals[k] || 0) + v;
 
     const reporting = rows.filter(r => r.V > 0);
+    // turnout vs. 2022 (two-party votes): per county once enough is in to judge, and the projected statewide total
+    let tw = 0, tE = 0;
+    for (const r of rows) {
+      tw += r.w; tE += Math.max(r.E, r.V || 0);
+      const enough = r.V > 0 && (r.complete || (r.p != null && r.p >= 0.25) || r.f >= 0.5);
+      r.turnout22 = enough && r.w > 0 ? Math.max(r.E, r.V) / r.w : null;
+    }
     const drivers = reporting.slice().sort((a, b) => b.projNet - a.projNet);
     return {
       geo: geo.id, target, swing: s, swingLive: sLive, turnout, turnoutLearned, rows, earlyWindow,
@@ -267,6 +275,8 @@
       counted, projShare, projMargin: 2 * projShare - 1, unc, outlook, avgDev,
       v2, shiftPanel, altLabel: useAlt ? geo.alt_label[opts.raceKey] : null,
       cur: { D: curD, R: curR, O: curO, ind: indTotals },
+      proj: { D: pD, R: pR, remD: Math.max(0, pD - curD), remR: Math.max(0, pR - curR) },
+      turnoutVs22: tw > 0 ? tE / tw : null,
       nReporting: reporting.length, nCounties: rows.length,
       helping: drivers.filter(r => r.projNet > 0 && !r.lowImpact).slice(0, 5),
       hurting: drivers.filter(r => r.projNet < 0 && !r.lowImpact).reverse().slice(0, 5),

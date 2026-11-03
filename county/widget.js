@@ -14,7 +14,7 @@
   .ctw-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
   .ctw-top .t{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted,#8a99a8)}
   .ctw select{background:var(--panel2,#1d2630);color:var(--text,#e8edf2);border:1px solid var(--line,#2a3542);border-radius:6px;padding:4px 8px;font:inherit;font-size:13px}
-  .ctw .seg{display:inline-flex;border:1px solid var(--line,#2a3542);border-radius:6px;overflow:hidden}
+  .ctw .seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line,#2a3542);border-radius:6px;overflow:hidden}
   .ctw .seg button{border:0;border-radius:0;padding:4px 9px;font-size:12px;background:var(--panel2,#1d2630);color:var(--muted,#8a99a8)}
   .ctw .seg button.on{background:var(--navy,#17365D);color:var(--text,#e8edf2)}
   .ctw a.full{margin-left:auto;color:var(--blue,#4F81BD);font-size:13px;text-decoration:none}
@@ -54,7 +54,15 @@
   }
   // % reporting: lighter = more of the count in
   const repFill = q => q == null ? COL.wait : `rgba(232,237,242,${(0.18 + 0.74 * Math.min(100, q) / 100).toFixed(3)})`;
+  const TURN = { up: ['#2f6f69', '#3f9d94', '#7dd3c8'], down: ['#8a5a22', '#c07f32', '#eab26a'] };
+  function turnFill(x) {           // x = turnout as a share of 2022
+    if (x == null) return COL.wait;
+    const d = x - 1, a = Math.abs(d); if (a < 0.03) return COL.mid;
+    const arr = d > 0 ? TURN.up : TURN.down; return arr[a < 0.1 ? 0 : a < 0.25 ? 1 : 2];
+  }
   function fill(r, mode) {
+    if (mode === 'shift') { const sw = window.CTExtras && CTExtras.shift24(r); return sw == null ? COL.wait : '#3a4652'; }
+    if (mode === 'turnout') return turnFill(r.turnout22);
     if (mode === 'rep') { const q = E.reporting(r); return q == null && !r.V ? COL.wait : repFill(q != null ? q : (r.complete ? 100 : null)); }
     if (mode === 'target') return Math.abs(r.t - 0.5) < 0.01 ? COL.mid : ramp(r.t - 0.5, 0.25);
     if (!r.V) return COL.wait;
@@ -97,7 +105,7 @@
     el.innerHTML = `<div class="ctw">
       <div class="ctw-top"><span class="t">County targets</span>
         <select aria-label="Race">${opts.map(o => `<option value="${o.v}">${esc(o.label)}</option>`).join('')}</select>
-        <span class="seg"><button data-m="result" class="on">Result</button><button data-m="pace">vs. win pace</button><button data-m="target">Win pace</button><button data-m="rep">% reporting</button></span>
+        <span class="seg"><button data-m="result" class="on">Result</button><button data-m="pace">vs. win pace</button><button data-m="target">Win pace</button><button data-m="rep">% reporting</button><button data-m="shift">Shift vs. 2024</button><button data-m="turnout">Turnout vs. 2022</button></span>
         <a class="full" target="_blank" rel="noopener">Full map ↗</a></div>
       <div class="ctw-body"><div><svg></svg><div class="leg"></div></div><div class="side"><div class="ol"></div><div class="det"></div></div></div></div>`;
     el.querySelector('select').onchange = e => { m.sel = e.target.value; m.county = null; draw(m); };
@@ -120,6 +128,7 @@
     defs.append('pattern').attr('id', `h-${m.st}`).attr('patternUnits', 'userSpaceOnUse').attr('width', 6).attr('height', 6)
       .attr('patternTransform', 'rotate(45)').append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 6).attr('stroke', '#e8edf2').attr('stroke-opacity', .45).attr('stroke-width', 1.2);
     const zl = svg.append('g').attr('class', 'zl');
+    m.path = path; m.zl = zl; m.feats = fc.features.filter(f => inGeo.has(f.id));
     zl.append('g').selectAll('path').data(fc.features.filter(f => !inGeo.has(f.id))).join('path').attr('class', 'off').attr('d', path);
     zl.append('g').attr('class', 'cp').selectAll('path').data(fc.features.filter(f => inGeo.has(f.id)), d => d.id).join('path').attr('class', 'c').attr('d', path)
       .on('mousemove', (ev, d) => tip(ev, m, d.id)).on('mouseleave', () => { document.getElementById('ctw-tip').style.display = 'none'; })
@@ -146,7 +155,14 @@
     d3.select(m.el).select('g.cp').selectAll('path').attr('fill', d => by[d.id] ? fill(by[d.id], m.mode) : COL.wait)
       .classed('sel', d => d.id === m.county).filter(d => d.id === m.county).raise();
     const sw = (c, t) => `<i style="background:${c}"></i>${t}`;
-    let lg = m.mode === 'rep' ? `${sw(COL.wait, 'Nothing in')} ${sw(repFill(10), '')}${sw(repFill(35), '')}${sw(repFill(65), '')}${sw(repFill(100), '')} <span>% of the count reported, 0 → 100</span>`
+    d3.select(m.el).selectAll('g.shift-arrows').remove();
+    if (m.mode === 'shift' && window.CTExtras && m.zl) {
+      const a = CTExtras.arrows(m.zl, m.path, m.feats, by, { dem: '#5b9cf0', rep: '#f0646b' });
+      const cities = m.zl.select('g.cities').node(); if (cities) m.zl.node().appendChild(cities);    // keep city labels on top
+    }
+    let lg = m.mode === 'shift' ? `<span>Arrows show each county's shift from 2024 (Dem two-party share): <b style="color:#5b9cf0">↖ toward Dems</b> · <b style="color:#f0646b">↗ toward GOP</b>; longer = bigger shift; faded = early votes only so far</span> ${sw(COL.wait, 'No votes yet')}`
+      : m.mode === 'turnout' ? `${sw(TURN.down[2], '')}${sw(TURN.down[1], '')}${sw(TURN.down[0], 'Below 2022')} ${sw(COL.mid, 'About the same')} ${sw(TURN.up[0], 'Above 2022')}${sw(TURN.up[1], '')}${sw(TURN.up[2], '')} <span>projected two-party turnout vs. 2022 · gray = too little in to tell</span>`
+      : m.mode === 'rep' ? `${sw(COL.wait, 'Nothing in')} ${sw(repFill(10), '')}${sw(repFill(35), '')}${sw(repFill(65), '')}${sw(repFill(100), '')} <span>% of the count reported, 0 → 100</span>`
       : m.mode === 'pace' ? `${sw(COL.r[3], '')}${sw(COL.r[1], 'Behind win pace')} ${sw(COL.mid, 'On pace')} ${sw(COL.d[1], 'Ahead')}${sw(COL.d[3], '')} ${sw(COL.wait, 'No votes')}`
       : `${sw(COL.r[3], '')}${sw(COL.r[1], 'GOP')} ${sw(COL.mid, 'Even')} ${sw(COL.d[1], 'Dem')}${sw(COL.d[3], '')} <span>${m.mode === 'target' ? 'share each county needs for a Dem win' : 'two-party share'}</span>`;
     if (m.g.type === 'cd') lg += ` <i style="background:repeating-linear-gradient(45deg,#8a99a8 0 1px,transparent 1px 4px)"></i>split county · dark counties are outside the district`;
@@ -163,7 +179,7 @@
     let h = `<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap"><div><div class="big">${r.nReporting ? (r.projMargin >= 0 ? 'D+' : 'R+') + Math.abs(r.projMargin * 100).toFixed(1) : '—'}</div>
       <div class="note" style="margin:0">projected final margin · ${esc(g.name)} ${RN[m.o.rk]}</div></div>${pill(r.outlook, lab)}</div>`;
     const RR = E.raceReporting(m.race, r);
-    h += `<div class="kvs"><div>Reporting<b>${RR.pct != null ? Math.round(RR.pct) + '%' : '—'}</b><span style="font-size:11px">${RR.full} of ${RR.n} counties fully in</span></div><div>Expected vote in<b>${Math.round(r.counted * 100)}%</b><span style="font-size:11px">model estimate</span></div>
+    h += `<div class="kvs"><div>Reporting<b>${RR.pct != null ? Math.round(RR.pct) + '%' : '—'}</b><span style="font-size:11px">${RR.full} of ${RR.n} counties fully in</span></div><div>Expected vote in<b>${Math.round(r.counted * 100)}%</b><span style="font-size:11px">model estimate</span></div><div>Turnout vs. 2022<b>${r.turnoutLearned && r.turnoutVs22 ? Math.round(r.turnoutVs22 * 100) + '%' : '—'}</b><span style="font-size:11px">${r.turnoutLearned ? 'projected, two-party' : 'once 3+ counties finish'}</span></div>
       <div>${esc(last(r.dem))}<b>${tot ? E.fmtPct(r.cur.D / tot) : '—'}</b></div><div>${esc(last(r.rep))}<b>${tot ? E.fmtPct(r.cur.R / tot) : '—'}</b></div>
       ${ind && ind[1] > 0.05 * tot ? `<div>${esc(last(ind[0]))}<b>${E.fmtPct(ind[1] / tot)}</b></div>` : ''}
       <div>Ahead / on / behind<b>${r.tally.good} / ${r.tally.neutral} / ${r.tally.bad}</b>${r.tally.goodEarly ? `<span style="font-size:11px">+${r.tally.goodEarly} ahead on early votes only</span>` : ''}</div></div>`;
@@ -176,6 +192,7 @@
     if (r.nReporting) {
       const li = a => a.map(x => `<a data-f="${x.fips}">${esc(x.name)}${x.likelyEarly ? ' <span>(early)</span>' : ''}<span>${x.projNet >= 0 ? '+' : '−'}${E.fmtN(Math.abs(x.projNet))}</span></a>`).join('') || '<span class="note">—</span>';
       h += `<div class="lists"><div><h4>Beating win pace · proj. net votes</h4>${li(r.helping.slice(0, 4))}</div><div><h4>Trailing win pace · proj. net votes</h4>${li(r.hurting.slice(0, 4))}</div></div>`;
+      if (window.CTExtras) h += CTExtras.whereLeft(r, E, { rk: m.o.rk, n: 6, link: true });
       const sp = r.shiftPanel.filter(x => x.done > 0);
       if (sp.length) {
         const pt = x => (x >= 0 ? '+' : '−') + Math.abs(x * 25).toFixed(1);
@@ -218,7 +235,7 @@
   function tip(ev, m, fips) {
     const r = m.res.rows.find(x => x.fips === fips); if (!r) return;
     const t = document.getElementById('ctw-tip');
-    t.innerHTML = `<b>${esc(r.name)}</b>${r.split ? ' (part)' : ''}<br>` + (r.V ? `${esc(last(m.res.dem))} ${E.fmtPct(r.A)} · ${E.reporting(r) != null ? Math.round(E.reporting(r)) + '% reporting' : '~' + Math.round(r.f * 100) + '% of expected vote'}<br>Win pace ${E.fmtPct(r.t)} · ${E.fmtPts(r.dev)} pts` : `No votes yet${E.reporting(r) != null ? ' · ' + Math.round(E.reporting(r)) + '% reporting' : ''} · needs ${E.fmtPct(r.t)} Dem`);
+    t.innerHTML = `<b>${esc(r.name)}</b>${r.split ? ' (part)' : ''}<br>` + (r.V ? `${esc(last(m.res.dem))} ${E.fmtPct(r.A)} · ${E.reporting(r) != null ? Math.round(E.reporting(r)) + '% reporting' : '~' + Math.round(r.f * 100) + '% of expected vote'}<br>Win pace ${E.fmtPct(r.t)} · ${E.fmtPts(r.dev)} pts${r.swing24 != null ? `<br>Shift vs. 2024: ${(Math.abs(r.swing24) * 100).toFixed(1)} pts toward ${r.swing24 >= 0 ? 'Dems' : 'GOP'}${r.likelyEarly ? ' (early votes)' : ''}` : ''}${r.turnout22 != null ? `<br>Turnout ~${Math.round(r.turnout22 * 100)}% of 2022` : ''}` : `No votes yet${E.reporting(r) != null ? ' · ' + Math.round(E.reporting(r)) + '% reporting' : ''} · needs ${E.fmtPct(r.t)} Dem`);
     t.style.display = 'block'; t.style.left = Math.min(innerWidth - 260, ev.clientX + 14) + 'px'; t.style.top = (ev.clientY + 14) + 'px';
   }
 

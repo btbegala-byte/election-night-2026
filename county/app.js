@@ -88,7 +88,11 @@
     const a = (0.18 + 0.72 * Math.min(100, q) / 100).toFixed(3);
     return m ? `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})` : css('--ink');
   }
+  const TURN = { up: ['#9fd8d1', '#4aa89f', '#23716a'], down: ['#f3cf9c', '#d9934a', '#9c5f1f'] };
+  function turnFill(x) { if (x == null) return css('--wait'); const d = x - 1, a = Math.abs(d); if (a < 0.03) return css('--mid'); return (d > 0 ? TURN.up : TURN.down)[a < 0.1 ? 0 : a < 0.25 ? 1 : 2]; }
   function colorFor(r) {
+    if (S.color === 'shift') return window.CTExtras && CTExtras.shift24(r) != null ? css('--mid') : css('--wait');
+    if (S.color === 'turnout') return turnFill(r.turnout22);
     if (S.color === 'rep') { const q = E.reporting(r); return q == null && !r.V ? css('--wait') : repFill(q != null ? q : (r.complete ? 100 : null)); }
     if (S.color === 'target') return divScale(r.t - 0.5, 0.25);
     if (!r.V) return css('--wait');
@@ -133,6 +137,11 @@
 
   function paint() {
     const byF = Object.fromEntries(S.res.rows.map(r => [r.fips, r]));
+    d3.select(gMap.node()).selectAll('g.shift-arrows').remove();
+    if (S.color === 'shift' && window.CTExtras) {
+      CTExtras.arrows(d3.select(gMap.node()), path, d3.select('#cpaths').selectAll('path').data(), byF, { dem: '#2f6bc0', rep: '#c73a44' });
+      const c = gMap.node().querySelector('g.cities'); if (c) gMap.node().appendChild(c);
+    }
     d3.select('#cpaths').selectAll('path').attr('fill', d => byF[d.id] ? colorFor(byF[d.id]) : css('--wait'))
       .classed('sel', d => d.id === S.selected).filter(d => d.id === S.selected).raise();
     legend();
@@ -141,7 +150,9 @@
   function legend() {
     const sw = (v, t) => `<span class="sw" style="background:${css(v)}"></span>${t}`;
     let h;
-    if (S.color === 'rep') h = `${sw('--wait', 'Nothing in')} ${[10, 35, 65, 100].map(q => `<span class="sw" style="background:${repFill(q)}"></span>`).join('')} <span class="muted">% of the count reported, 0 → 100 (darker = more complete)</span>`;
+    if (S.color === 'shift') h = `<span class="muted">Arrows show each county's shift from 2024 (Dem two-party share): <b style="color:#2f6bc0">↖ toward Dems</b> · <b style="color:#c73a44">↗ toward GOP</b>; longer = bigger; faded = early votes only so far.</span> ${sw('--wait', 'No votes yet')}`;
+    else if (S.color === 'turnout') h = `${[2, 1, 0].map(i => `<span class="sw" style="background:${TURN.down[i]}"></span>`).join('')}Below 2022 ${sw('--mid', 'Same')} ${[0, 1, 2].map(i => `<span class="sw" style="background:${TURN.up[i]}"></span>`).join('')}Above 2022 <span class="muted">projected two-party turnout · gray = too little in</span>`;
+    else if (S.color === 'rep') h = `${sw('--wait', 'Nothing in')} ${[10, 35, 65, 100].map(q => `<span class="sw" style="background:${repFill(q)}"></span>`).join('')} <span class="muted">% of the count reported, 0 → 100 (darker = more complete)</span>`;
     else if (S.color === 'pace') h = `${sw('--r4', '')}${sw('--r2', 'Behind win pace')} ${sw('--mid', 'On pace / too early')} ${sw('--d2', 'Ahead')}${sw('--d4', '')} ${sw('--wait', 'No votes')}`;
     else if (S.color === 'result') h = `${sw('--r4', '')}${sw('--r2', 'GOP')} ${sw('--mid', 'Even')} ${sw('--d2', 'Dem')}${sw('--d4', '')} <span class="muted">two-party share</span>`;
     else h = `${sw('--r4', '')}${sw('--r2', 'GOP')} ${sw('--mid', 'Even')} ${sw('--d2', 'Dem')}${sw('--d4', '')} <span class="muted">share each county needs for a ${E.fmtPct(S.target)} result</span>`;
@@ -152,7 +163,7 @@
   function showTip(ev, fips) {
     const r = S.res.rows.find(x => x.fips === fips); if (!r) return;
     const t = $('tip');
-    t.innerHTML = `<b>${esc(r.name)}</b>${r.split ? ' (part)' : ''}<br>` + (r.V ? `${esc(lastName(S.res.dem))} ${E.fmtPct(r.A)} · ${E.reporting(r) != null ? Math.round(E.reporting(r)) + '% reporting' : '~' + Math.round(r.f * 100) + '% of expected vote'}<br>Win pace ${E.fmtPct(r.t)} · ${E.fmtPts(r.dev)} pts` : `No votes yet${E.reporting(r) != null ? ' · ' + Math.round(E.reporting(r)) + '% reporting' : ''} · win pace ${E.fmtPct(r.t)}`);
+    t.innerHTML = `<b>${esc(r.name)}</b>${r.split ? ' (part)' : ''}<br>` + (r.V ? `${esc(lastName(S.res.dem))} ${E.fmtPct(r.A)} · ${E.reporting(r) != null ? Math.round(E.reporting(r)) + '% reporting' : '~' + Math.round(r.f * 100) + '% of expected vote'}<br>Win pace ${E.fmtPct(r.t)} · ${E.fmtPts(r.dev)} pts${r.swing24 != null ? `<br>Shift vs. 2024: ${(Math.abs(r.swing24) * 100).toFixed(1)} pts toward ${r.swing24 >= 0 ? 'Dems' : 'GOP'}` : ''}${r.turnout22 != null ? `<br>Turnout ~${Math.round(r.turnout22 * 100)}% of 2022` : ''}` : `No votes yet${E.reporting(r) != null ? ' · ' + Math.round(E.reporting(r)) + '% reporting' : ''} · win pace ${E.fmtPct(r.t)}`);
     t.style.display = 'block';
     t.style.left = Math.min(innerWidth - 270, ev.clientX + 14) + 'px'; t.style.top = (ev.clientY + 14) + 'px';
   }
@@ -181,6 +192,7 @@
     html += `<div class="row">
       <div class="kv">Reporting<b>${RR.pct != null ? Math.round(RR.pct) + '%' : '—'}</b><span class="muted" style="font-size:11.5px">${RR.full} of ${RR.n} counties fully in</span></div>
       <div class="kv">Expected vote in (model)<b>${r.nReporting ? Math.round(r.counted * 100) + '%' : '0%'}</b></div>
+      <div class="kv">Turnout vs. 2022<b>${r.turnoutLearned && r.turnoutVs22 ? Math.round(r.turnoutVs22 * 100) + '%' : '—'}</b><span class="muted" style="font-size:11.5px">${r.turnoutLearned ? 'projected, two-party' : 'once 3+ counties finish'}</span></div>
       <div class="kv">${esc(lastName(r.dem))}<b>${tot ? E.fmtN(r.cur.D) + ' · ' + E.fmtPct(r.cur.D / tot) : '—'}</b></div>
       <div class="kv">${esc(lastName(r.rep))}<b>${tot ? E.fmtN(r.cur.R) + ' · ' + E.fmtPct(r.cur.R / tot) : '—'}</b></div>
       ${ind && ind[1] > 0.04 * tot ? `<div class="kv">${esc(lastName(ind[0]))}<b>${E.fmtN(ind[1])} · ${E.fmtPct(ind[1] / tot)}</b></div>` : ''}
@@ -197,6 +209,7 @@
       const sp = r.shiftPanel.filter(x => x.done > 0);
       if (sp.length) { const pt = x => (x >= 0 ? '+' : '−') + Math.abs(x * 25).toFixed(1);
         html += `<table style="margin-top:6px"><thead><tr><th>Fully counted, by type</th><th>Done</th><th>Shift</th><th>Needed</th><th>Gap</th></tr></thead><tbody>${sp.map(x => `<tr><td>${esc(x.label)}</td><td>${x.done}/${x.counties}</td><td>${pt(x.observedShift)}</td><td>${pt(x.neededShift)}</td><td>${pt(x.gap)}</td></tr>`).join('')}</tbody></table><div class="note">Points at a 50/50 county, vs. each county's baseline.</div>`; }
+      if (window.CTExtras) html += CTExtras.whereLeft(r, E, { rk: raceKey(), n: 10, link: true });
     }
     html += `<div class="note">Win pace = the share each county needs if the ${g.type === 'cd' ? 'district' : 'state'} lands at ${E.fmtPct(S.target)} Dem (two-party). Projection assumes uncounted votes follow each county's pace gap, discounted for early/mail-first counting. Turnout ${r.turnoutLearned ? 'estimated from fully counted counties: ' + Math.round(r.turnout * 100) + '% of 2022' : 'assumed at 2022 levels'}.</div>`;
     $('outlook').innerHTML = html;

@@ -76,6 +76,7 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             git pull --rebase --autostash --quiet origin main || git rebase --abort || true
             node scripts/county_blurbs.mjs || echo "::warning::blurb run failed"
+            [ -f /tmp/ct_raw.json ] && { node scripts/alerts.mjs | head -20 || echo "::warning::alerts failed"; }
             # AP race-call check runs in the background so a slow web search never delays the notes
             if [ -f /tmp/ct_raw.json ] && ! { [ -f /tmp/ap.pid ] && kill -0 "$(cat /tmp/ap.pid)" 2>/dev/null; }; then
               cat /tmp/ap.log 2>/dev/null | tail -5 || true
@@ -86,12 +87,17 @@ jobs:
               cat /tmp/bal.log 2>/dev/null | tail -3 || true
               ( node scripts/balance.mjs > /tmp/bal.log 2>&1 ) & echo $! > /tmp/bal.pid
             fi
+            # young men (18-29) in the exit polls; throttles itself to every 20 min after 7 pm ET
+            if ! { [ -f /tmp/ym.pid ] && kill -0 "$(cat /tmp/ym.pid)" 2>/dev/null; }; then
+              cat /tmp/ym.log 2>/dev/null | tail -2 || true
+              ( node scripts/youngmen.mjs > /tmp/ym.log 2>&1 ) & echo $! > /tmp/ym.pid
+            fi
             if ls /tmp/archive_out/*.json.gz >/dev/null 2>&1; then
               mkdir -p /tmp/arch/raw && mv /tmp/archive_out/*.json.gz /tmp/arch/raw/
               git -C /tmp/arch add raw && git -C /tmp/arch commit -qm "Raw civicAPI archive $(date -u +%H:%MZ)" && git -C /tmp/arch push -q origin archive || echo "::warning::archive push failed"
             fi
             if [ -f data/model/blurbs.json ] || [ -f data/model/snapshots.json ] || [ -f data/model/ap_calls.json ] || [ -f data/model/balance.json ]; then
-              for f in data/model/blurbs.json data/model/snapshots.json data/model/ap_calls.json data/model/balance.json; do [ -f "$f" ] && git add "$f"; done
+              for f in data/model/blurbs.json data/model/snapshots.json data/model/ap_calls.json data/model/balance.json data/model/alerts.json data/model/alerts_state.json data/model/youngmen.json; do [ -f "$f" ] && git add "$f"; done
               if ! git diff --cached --quiet; then
                 git commit -q -m "AI notes + race snapshots $(date -u +%H:%MZ)"
                 for i in 1 2 3 4 5; do

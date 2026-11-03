@@ -7,14 +7,16 @@
    "state": "GA",
    "name": "US Senate",
    "label": "US Senate",
-   "target": false
+   "target": false,
+   "holder": "D"
   },
   {
    "id": 87088,
    "state": "GA",
    "name": "Governor",
    "label": "Governor",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87095,
@@ -84,28 +86,32 @@
    "state": "IA",
    "name": "US Senate",
    "label": "US Senate",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87152,
    "state": "IA",
    "name": "Governor",
    "label": "Governor",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87147,
    "state": "IA",
    "name": "US House 1",
    "label": "IA-01",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 87148,
    "state": "IA",
    "name": "US House 2",
    "label": "IA-02",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 87153,
@@ -175,28 +181,32 @@
    "state": "MI",
    "name": "US Senate",
    "label": "US Senate",
-   "target": false
+   "target": false,
+   "holder": "D"
   },
   {
    "id": 87215,
    "state": "MI",
    "name": "Governor",
    "label": "Governor",
-   "target": false
+   "target": false,
+   "holder": "D"
   },
   {
    "id": 87204,
    "state": "MI",
    "name": "US House 4",
    "label": "MI-04",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 87210,
    "state": "MI",
    "name": "US House 10",
    "label": "MI-10",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 87217,
@@ -273,21 +283,24 @@
    "state": "NC",
    "name": "US Senate",
    "label": "US Senate",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87336,
    "state": "NC",
    "name": "US House 5",
    "label": "NC-05",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 87342,
    "state": "NC",
    "name": "US House 11",
    "label": "NC-11",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 140117,
@@ -343,21 +356,24 @@
    "state": "OH",
    "name": "US Senate Special General",
    "label": "US Senate (special)",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87365,
    "state": "OH",
    "name": "Governor",
    "label": "Governor",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87356,
    "state": "OH",
    "name": "US House 7",
    "label": "OH-07",
-   "target": true
+   "target": true,
+   "holder": "R"
   },
   {
    "id": 87366,
@@ -413,14 +429,16 @@
    "state": "TX",
    "name": "US Senate",
    "label": "US Senate",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 55857,
    "state": "TX",
    "name": "Governor",
    "label": "Governor",
-   "target": false
+   "target": false,
+   "holder": "R"
   },
   {
    "id": 87422,
@@ -428,7 +446,8 @@
    "name": "US House 15",
    "label": "TX-15",
    "target": true,
-   "group": "house"
+   "group": "house",
+   "holder": "R"
   },
   {
    "id": 87428,
@@ -436,7 +455,8 @@
    "name": "US House 23",
    "label": "TX-23",
    "target": true,
-   "group": "house"
+   "group": "house",
+   "holder": "R"
   },
   {
    "id": 55855,
@@ -535,7 +555,8 @@
    "name": "US House 9",
    "label": "TX-09",
    "target": false,
-   "group": "house"
+   "group": "house",
+   "holder": "D"
   },
   {
    "id": 56011,
@@ -543,7 +564,8 @@
    "name": "US House 28",
    "label": "TX-28",
    "target": false,
-   "group": "house"
+   "group": "house",
+   "holder": "D"
   },
   {
    "id": 56013,
@@ -551,7 +573,8 @@
    "name": "US House 34",
    "label": "TX-34",
    "target": false,
-   "group": "house"
+   "group": "house",
+   "holder": "D"
   },
   {
    "id": 87435,
@@ -559,7 +582,8 @@
    "name": "US House 35",
    "label": "TX-35",
    "target": false,
-   "group": "house"
+   "group": "house",
+   "holder": "D"
   },
   {
    "id": 56085,

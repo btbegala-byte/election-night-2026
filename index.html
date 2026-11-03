@@ -71,6 +71,11 @@
   .apcall { font-size: 12.5px; color: var(--called); margin-top: 6px; }
   .apcall a { color: var(--blue); font-weight: 700; }
   .apcall .t { color: var(--muted); }
+  .apwhy { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .rstat { display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 1px 8px; margin: 6px 0 2px; border: 1px solid var(--line); color: var(--muted); }
+  .rstat.close { color: var(--warn); border-color: #5a4415; }
+  .rstat.called { color: var(--called); border-color: #1f5a3a; }
+  .rstat.flip { color: #fff; background: #7b4bb5; border-color: #7b4bb5; margin-left: 4px; }
   .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; gap: 8px; }
   .margin { font-weight: 700; }
   .stale { color: var(--warn); }
@@ -90,6 +95,41 @@
   .exit li { margin: 3px 0; }
   .views { display: flex; gap: 4px; }
   .views .chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  /* young men 18-29 in the exit polls */
+  .ym { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 10px; padding: 14px 16px; margin: 0 0 14px; }
+  .ym h2 { margin: 0 0 4px; font-size: 18px; }
+  .ym .sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .ym .rows { display: grid; grid-template-columns: minmax(110px, auto) 1fr 70px; gap: 6px 10px; align-items: center; font-size: 13.5px; }
+  .ym .bar2 { position: relative; height: 16px; border-radius: 4px; overflow: hidden; background: #2a3542; display: flex; }
+  .ym .bar2 i { display: block; height: 100%; }
+  .ym .mg { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  .ym table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 12px; font-variant-numeric: tabular-nums; }
+  .ym td, .ym th { padding: 6px 8px 6px 0; border-top: 1px solid var(--line); text-align: right; }
+  .ym th { color: var(--muted); font-weight: 600; font-size: 12px; } .ym td:first-child, .ym th:first-child { text-align: left; }
+  .ym .src { color: var(--muted); font-size: 12px; margin-top: 8px; } .ym .src a { color: var(--blue); }
+  .ym ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
+  .ymline { font-size: 13.5px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .ymline a { color: var(--blue); cursor: pointer; }
+  /* alerts feed + closest races */
+  .duo { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin: 0 0 14px; }
+  .duo.one { grid-template-columns: 1fr; }
+  .feed { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .feed h2 { margin: 0 0 8px; font-size: 16px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .feed h2 .sub { color: var(--muted); font-size: 12.5px; font-weight: 400; }
+  .feed .it { display: grid; grid-template-columns: 52px 18px 1fr; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 13.5px; line-height: 1.35; }
+  .feed .it:first-of-type { border-top: 0; }
+  .feed .it .tm { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+  .feed .it .ic { text-align: center; font-weight: 700; }
+  .feed .it b { font-weight: 700; }
+  .feed .it.call .ic { color: var(--called); } .feed .it.lead .ic, .feed .it.close .ic { color: var(--warn); } .feed .it.drop .ic { color: var(--blue); } .feed .it.first .ic { color: var(--muted); }
+  .feed .it.flip { background: rgba(123,75,181,.12); border-radius: 6px; }
+  .feed details summary { cursor: pointer; color: var(--blue); font-size: 13px; margin-top: 6px; list-style: none; }
+  .feed .empty { color: var(--muted); font-size: 13.5px; }
+  .cl { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; font-size: 13.5px; align-items: baseline; }
+  .cl a { color: var(--text); cursor: pointer; text-decoration: none; border-bottom: 1px dotted var(--muted); justify-self: start; }
+  .cl .m { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .cl .p { color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 800px) { .duo { grid-template-columns: 1fr; } }
   /* nationwide balance of power (All states view) */
   .bop { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 12px; margin: 0 0 14px; }
   .bop .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
@@ -163,11 +203,13 @@
   <div id="banner"></div>
   <div id="resultsView">
     <div class="bop" id="balance" style="display:none"></div>
+    <div class="duo" id="duo"><div class="feed" id="alerts"></div><div class="feed" id="closest"></div></div>
     <div class="exit snap" id="snapshot"></div>
     <section class="nat" id="national" style="display:none"></section>
     <div id="states"></div>
   </div>
   <div id="exitView" style="display:none">
+    <div class="ym" id="youngmen"></div>
     <div class="exit" id="exitPolls"></div>
   </div>
 </main>
@@ -175,14 +217,15 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793733259"></script>
-<script src="county/engine.js?v=1793733259"></script>
-<script src="county/civic.js?v=1793733259"></script>
-<script src="county/mapzoom.js?v=1793733259"></script>
-<script src="county/cities.js?v=1793733259"></script>
-<script src="county/national.js?v=1793733259"></script>
-<script src="county/widget.js?v=1793733259"></script>
-<script src="county/chat.js?v=1793733259"></script>
+<script src="county/vendor/d3.min.js?v=1793734838"></script>
+<script src="county/engine.js?v=1793734838"></script>
+<script src="county/civic.js?v=1793734838"></script>
+<script src="county/mapzoom.js?v=1793734838"></script>
+<script src="county/extras.js?v=1793734838"></script>
+<script src="county/cities.js?v=1793734838"></script>
+<script src="county/national.js?v=1793734838"></script>
+<script src="county/widget.js?v=1793734838"></script>
+<script src="county/chat.js?v=1793734838"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -311,6 +354,26 @@ function classify(r) {
   return 'downballot';
 }
 
+// Flip badge: the called winner's party differs from the party that holds the seat now (races.json "holder")
+window.flipFor = function (r, call, cands) {
+  if (!r.holder || !call || !call.winner) return '';
+  const w = cands.find(c => apNameMatch(c.name, call.winner)); if (!w) return '';
+  const p = partyAbbr(w.party); if (!p || p === r.holder) return '';
+  const col = p === 'D' ? 'var(--dem)' : p === 'R' ? 'var(--rep)' : '#7b4bb5';
+  return `<span class="rstat flip" style="background:${col};border-color:${col}" title="Seat currently held by ${r.holder === 'D' ? 'Democrats' : 'Republicans'}">${p === 'D' ? 'Dem' : p === 'R' ? 'GOP' : p} pickup</span>`;
+};
+// Race status: our own description of the count, never a call. Calls come only from the decision desks (callLine).
+function statusChip(r, call, cands, total, pr) {
+  const flip = window.flipFor ? flipFor(r, call, cands) : '';
+  if (call && call.winner && !call.conflict) return `<div><span class="rstat called">✓ Called</span>${flip}</div>`;
+  if (call && call.conflict) return `<div><span class="rstat close">Desks disagree</span></div>`;
+  if (!total) return '';
+  if (!(r.target || r.holder || r.group)) return '';          // status chips only on Senate, governor, House and TX legislative races
+  const m = cands.length >= 2 ? Math.abs(Number(cands[0].votes) - Number(cands[1].votes)) / total * 100 : 100;
+  if (pr >= 95 && m < 0.5) return `<div><span class="rstat close">Very close · under 0.5 pts with ${Math.round(pr)}% reporting</span></div>`;
+  if (pr >= 80 && m < 2) return `<div><span class="rstat close">Close · not yet called</span></div>`;
+  return `<div><span class="rstat">Not yet called</span></div>`;
+}
 function card(r, labelOverride) {
   const d = DATA[r.id];
   const cls = classify(r);
@@ -351,6 +414,7 @@ function card(r, labelOverride) {
       <div class="rep-pct">${pr ? pr.toFixed(0) + '% reporting' : 'No votes yet'}</div>
     </div>
     <div class="prog"><div style="width:${Math.min(100, pr)}%"></div></div>
+    ${statusChip(r, call, cands, total, pr)}
     ${rows || '<div class="empty">No candidates listed</div>'}
     ${call ? callLine(call) : ''}
     <div class="foot"><span>${total ? fmt(total) + ' votes' : ''}${marginTxt ? ' · <span class="margin">' + marginTxt + '</span>' : ''}</span><span>${ago(d.last_updated)}${stale}</span></div>
@@ -401,6 +465,7 @@ function render() {
       ${more ? `<details class="more" ${filter !== 'ALL' ? 'open' : ''}><summary>Down-ballot statewide races (${down.length + jud.length + meas.length})</summary>${more}</details>` : ''}`;
   }
   if (window.CTWidget) CTWidget.refresh();
+  renderClosest();
   // Preserve open state of details across re-renders
   document.querySelectorAll('details.more').forEach(el => {
     const key = el.closest('section').id;
@@ -429,6 +494,18 @@ window.chatExtraContext = function () {
     (j.findings || []).forEach(f => lines.push('- ' + f));
     (j.links || []).forEach(l => lines.push(`- ${l.title} (${l.source || ''})${l.note ? ': ' + l.note : ''}`));
   }
+  if (YM && (YM.national || YM.states)) {
+    lines.push('\n## Young men 18-29 in exit polls / AP VoteCast (D% / R%)');
+    const f = (lab, p) => p ? `${lab} ${p.D}/${p.R}${p.source_name ? ' (' + p.source_name + ')' : ''}` : null;
+    const N = YM.national || {};
+    lines.push('National: ' + [f('men 18-29', N.men1829), f('all voters', N.all), f('voters 18-29', N.voters1829), f('men 18-29 in 2024', N.men1829_2024)].filter(Boolean).join('; '));
+    for (const [st, x] of Object.entries(YM.states || {})) lines.push(`${st}: ` + [f('men 18-29', x.men1829), f('all voters', x.all), f('men 18-29 in 2024', x.men1829_2024)].filter(Boolean).join('; '));
+    (YM.notes || []).forEach(n => lines.push('- ' + n));
+  }
+  const al = (ALERTS.items || []).slice(-15);
+  if (al.length) { lines.push('\n## Recent alerts (newest last)'); al.forEach(a => lines.push(`${fmtClock(a.at)} ${a.race}: ${a.text}`)); }
+  const pk = BAL.pickups || {}, cb = BAL.called || {};
+  lines.push(`\n## Nationwide balance of power: Senate called D ${(cb.senate || {}).D || 0} / R ${(cb.senate || {}).R || 0} of 35 (plus 34 D / 31 R not up); House called D ${(cb.house || {}).D || 0} / R ${(cb.house || {}).R || 0}${pk.senate ? `; Senate pickups D ${pk.senate.D} R ${pk.senate.R}` : ''}${pk.house ? `; House pickups D ${pk.house.D} R ${pk.house.R}` : ''}.`);
   return lines.join('\n');
 };
 
@@ -463,7 +540,8 @@ function callLine(call) {
     .sort((a, b) => CALLER_ORDER.indexOf(a.caller) - CALLER_ORDER.indexOf(b.caller));
   const winners = [...new Set(cs.map(c => c.winner))];
   const one = c => `<a href="${esc(c.source_url)}" target="_blank" rel="noopener" title="${esc(c.source_name || '')}">${esc(c.caller)}</a>${c.called_at ? ' <span class="t">' + esc(c.called_at) + '</span>' : ''}${winners.length > 1 ? ' (' + esc(c.winner) + ')' : ''}`;
-  return `<div class="apcall">${winners.length > 1 ? '⚠ Calls disagree:' : 'Called for ' + esc(call.winner) + ' by'} ${cs.map(one).join(' · ')}</div>`;
+  const why = (cs.find(c => c.reason) || {}).reason;
+  return `<div class="apcall">${winners.length > 1 ? '⚠ Calls disagree:' : 'Called for ' + esc(call.winner) + ' by'} ${cs.map(one).join(' · ')}</div>${why && winners.length === 1 ? `<div class="apwhy">Why: ${esc(why)}</div>` : ''}`;
 }
 async function loadApCalls() {
   try { AP = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { return; }
@@ -539,7 +617,7 @@ function renderBalance() {
         <div class="maj" style="left:${pct(key === 'senate' ? 50 : c.control.D - 0.5, tot)}" title="${ctrlTxt}"></div>
         ${pj ? `<div class="proj" style="left:${pct(pj.D, tot)}" title="Projected: D ${pj.D} – R ${pj.R}"></div>` : ''}
       </div>
-      <div class="foot"><span>${cal.D + cal.R + I} of ${c.up} called${I ? ` · ${I} independent` : ''}</span><span>${open} not yet called</span></div>
+      <div class="foot"><span>${cal.D + cal.R + I} of ${c.up} called${I ? ` · ${I} independent` : ''}</span>${(() => { const pk = (BAL.pickups || {})[key]; if (!pk || (pk.D || 0) + (pk.R || 0) === 0) return ''; const net = (pk.D || 0) - (pk.R || 0); return `<span>Seats changing hands so far: <b style="color:var(--dem)">D +${pk.D || 0}</b> · <b style="color:var(--rep)">R +${pk.R || 0}</b> · net ${net === 0 ? 'even' : (net > 0 ? 'D +' + net : 'R +' + (-net))}</span>`; })()}<span>${open} not yet called</span></div>
       ${projLine}
       ${won ? `<div class="won">✓ ${won}</div>` : ''}
     </div>`;
@@ -548,8 +626,85 @@ function renderBalance() {
   el.innerHTML = `<div class="head"><h2>Balance of power · nationwide</h2><span class="sub">${BAL.updated_at ? 'Calls as of ' + fmtClock(BAL.updated_at) : 'No races called yet'}</span></div>
     ${chamber('senate', 'Senate')}
     ${chamber('house', 'House')}
+    ${typeof ymLine === 'function' ? ymLine() : ''}
     <div class="src"><span class="key"><span><i style="background:var(--dem);opacity:.5"></i>Seats not up this year</span><span><i style="background:var(--dem)"></i>Won tonight</span><span><i style="background:#2a3542"></i>Not yet called</span><span><i style="background:var(--text)"></i>Majority line</span></span><br>
     Called races ${cs.source_url ? `per <a href="${esc(cs.source_url)}" target="_blank" rel="noopener">${esc(cs.source_name || 'news report')}</a>` : 'counted from AP and network decision desks'}; checked by Claude every 12–20 minutes after polls close. The ▼ marker is the projected final seat count.</div>`;
+}
+
+// ---------- Alerts feed (data/model/alerts.json, written by scripts/alerts.mjs in the GitHub job each cycle) ----------
+let ALERTS = { items: [] };
+const ALERT_IC = { first: '●', lead: '⇄', drop: '▲', call: '✓', close: '!' };
+async function loadAlerts() {
+  try { ALERTS = await fetchWithTimeout('data/model/alerts.json?t=' + Date.now(), 10000); } catch (e) { /* none yet */ }
+  renderAlerts();
+}
+function renderAlerts() {
+  const el = document.getElementById('alerts'); if (!el) return;
+  const list = (ALERTS.items || []).filter(a => filter === 'ALL' || a.state === filter).slice().reverse();
+  const one = a => `<div class="it ${a.kind}${a.flip ? ' flip' : ''}"><span class="tm">${fmtClock(a.at)}</span><span class="ic">${ALERT_IC[a.kind] || '•'}</span><span><b>${esc(a.race)}</b> · ${esc(a.text)}</span></div>`;
+  const wasOpen = el.querySelector('details') && el.querySelector('details').open;
+  const NA = matchMedia('(max-width: 600px)').matches ? 4 : 7;
+  el.innerHTML = `<h2>Alerts <span class="sub">lead changes, big vote drops, calls · updated every ~5 min</span></h2>` +
+    (list.length ? list.slice(0, NA).map(one).join('') + (list.length > NA ? `<details ${wasOpen ? 'open' : ''}><summary>Earlier alerts (${list.length - NA})</summary>${list.slice(NA).map(one).join('')}</details>` : '')
+      : `<div class="empty">Nothing yet. Alerts start once votes come in after ${filter === 'ALL' ? 'the first polls close at 7:00 pm ET' : 'polls close'}.</div>`);
+}
+
+// ---------- Closest races (All states): SAM races with votes in and no call yet, closest first ----------
+function renderClosest() {
+  const el = document.getElementById('closest'); if (!el) return;
+  document.getElementById('duo').classList.toggle('one', filter !== 'ALL');
+  el.style.display = filter === 'ALL' ? '' : 'none';
+  if (filter !== 'ALL') return;
+  const rows = [];
+  for (const r of RACES) {
+    if (!(r.target || r.holder)) continue;
+    const d = DATA[r.id]; if (!d || !d.candidates) continue;
+    if ((AP.calls || {})[r.id]) continue;
+    const cs = d.candidates.slice().sort((a, b) => (+b.votes || 0) - (+a.votes || 0));
+    const tot = cs.reduce((a, c) => a + (+c.votes || 0), 0); if (!tot || cs.length < 2) continue;
+    const m = ((+cs[0].votes) - (+cs[1].votes)) / tot * 100;
+    const lab = r.target || /^TX-\d+$/.test(r.label || '') ? r.label : `${STATE_INFO[r.state].name} ${(r.label || r.name).replace(/^US /, '').replace(' (special)', ' special')}`;
+    rows.push({ r, m, pty: partyAbbr(cs[0].party) || last(cs[0].name), pr: +d.percent_reporting || 0, lab });
+  }
+  rows.sort((a, b) => a.m - b.m);
+  el.innerHTML = `<h2>Closest races <span class="sub">not yet called</span></h2>` + (rows.length
+    ? `<div class="cl">${rows.slice(0, 8).map(x => `<a data-st="${x.r.state}" data-rid="${x.r.id}">${esc(x.lab)}</a><span class="m" style="color:${x.pty === 'D' ? 'var(--dem)' : x.pty === 'R' ? 'var(--rep)' : 'var(--text)'}">${esc(x.pty)}+${x.m.toFixed(1)}</span><span class="p">${Math.round(x.pr)}% in</span>`).join('')}</div>`
+    : '<div class="empty">Shows the tightest uncalled Senate, governor and House races once votes are in.</div>');
+  el.querySelectorAll('a[data-st]').forEach(a => a.onclick = () => {
+    filter = a.dataset.st; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); renderAlerts(); renderClosest();
+    setTimeout(() => { const c = document.querySelector(`#st-${a.dataset.st} .card[data-rid="${a.dataset.rid}"]`); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'center' }); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } }, 150);
+  });
+}
+function last(n) { return String(n || '').split(' ').slice(-1)[0]; }
+
+// ---------- Young men 18-29 in the exit polls (data/model/youngmen.json, written by scripts/youngmen.mjs) ----------
+let YM = null;
+async function loadYoungMen() {
+  try { YM = await fetchWithTimeout('data/model/youngmen.json?t=' + Date.now(), 10000); } catch (e) { YM = null; }
+  renderYoungMen(); renderBalance();
+}
+const ymM = p => p ? (p.D >= p.R ? `<span style="color:var(--dem)">D+${(p.D - p.R).toFixed(0)}</span>` : `<span style="color:var(--rep)">R+${(p.R - p.D).toFixed(0)}</span>`) : '—';
+function renderYoungMen() {
+  const el = document.getElementById('youngmen'); if (!el) return;
+  const N = (YM && YM.national) || {};
+  const bar = (lab, p) => p ? `<span>${lab}</span><span class="bar2"><i style="width:${p.D}%;background:var(--dem)"></i><i style="width:${Math.max(0, 100 - p.D - p.R)}%;background:#3b4756"></i><i style="width:${p.R}%;background:var(--rep)"></i></span><span class="mg">${ymM(p)}</span>` : '';
+  const srcs = new Map();
+  const note = p => { if (p && p.source_url) srcs.set(p.source_url, p.source_name || 'source'); return p; };
+  [N.men1829, N.all, N.voters1829, N.men1829_2024].forEach(note);
+  const stRows = ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'].map(st => { const x = ((YM && YM.states) || {})[st] || {}; [x.men1829, x.all, x.men1829_2024].forEach(note);
+    return `<tr><td>${STATE_INFO[st].name}${x.men1829 && x.men1829.race ? ` <span style="color:var(--muted);font-size:12px">${esc(x.men1829.race)}</span>` : ''}</td><td>${x.men1829 ? x.men1829.D + '–' + x.men1829.R : '—'}</td><td>${ymM(x.men1829)}</td><td>${ymM(x.all)}</td><td>${ymM(x.men1829_2024)}</td></tr>`; }).join('');
+  const any = N.men1829 || Object.values((YM && YM.states) || {}).some(x => x && x.men1829);
+  el.innerHTML = `<h2>Young men (18–29)</h2>
+    <div class="sub">${any ? `How men 18–29 voted, from published exit polls and AP VoteCast${YM.updated_at ? ' · checked ' + fmtClock(YM.updated_at) : ''}. Early exit poll numbers get re-weighted to the count overnight.` : 'Exit polls post when polls close (7:00 pm ET for Georgia). Claude checks the network exit polls and AP VoteCast every 20 minutes after that and fills this in.'}</div>
+    ${N.men1829 || N.all ? `<div class="rows">${bar('Men 18–29', N.men1829)}${bar('Voters 18–29', N.voters1829)}${bar('All voters', N.all)}${bar('Men 18–29 in 2024', N.men1829_2024)}</div>` : ''}
+    <table><tr><th>State</th><th>Men 18–29 (D–R %)</th><th>Margin</th><th>All voters</th><th>Men 18–29, 2024</th></tr>${stRows}</table>
+    ${YM && (YM.notes || []).length ? `<ul>${YM.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    ${srcs.size ? `<div class="src">Sources: ${[...srcs].map(([u, n]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}</a>`).join(' · ')}</div>` : ''}`;
+}
+function ymLine() {
+  const N = (YM && YM.national) || {};
+  if (!N.men1829) return '';
+  return `<div class="ymline"><b>Young men (18–29), national exit poll:</b> ${ymM(N.men1829)}${N.men1829_2024 ? ` · 2024: ${ymM(N.men1829_2024)}` : ''}${N.all ? ` · all voters ${ymM(N.all)}` : ''} · <a onclick="setView('exit')">state detail →</a></div>`;
 }
 
 let view = 'results';
@@ -566,7 +721,7 @@ function buildFilters() {
   const f = document.getElementById('filters');
   const opts = ['ALL', ...STATE_ORDER];
   f.innerHTML = opts.map(o => `<button class="chip ${o === filter ? 'on' : ''}" data-f="${o}">${o === 'ALL' ? 'All states' : o}</button>`).join('');
-  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); window.scrollTo({ top: 0 }); });
+  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); renderAlerts(); renderClosest(); window.scrollTo({ top: 0 }); });
 }
 
 function tick() {
@@ -591,11 +746,15 @@ function tick() {
   loadSnapshots();
   loadApCalls();
   loadBalance();
+  loadAlerts();
+  loadYoungMen();
   await loadAll();
   setInterval(tick, 1000);
   setInterval(loadSnapshots, 90 * 1000);
   setInterval(loadApCalls, 90 * 1000);
   setInterval(loadBalance, 90 * 1000);
+  setInterval(loadAlerts, 60 * 1000);
+  setInterval(loadYoungMen, 120 * 1000);
   document.getElementById('refreshBtn').onclick = () => { loadAll(); loadExitPolls(); loadSnapshots(); };
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() > nextAt) { loadAll(); loadExitPolls(); loadSnapshots(); } });
 })();
