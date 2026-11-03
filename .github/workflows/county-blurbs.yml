@@ -11,6 +11,10 @@ on:
         description: 'Only check that the Claude token works, then stop'
         type: boolean
         default: false
+      aptest:
+        description: 'Only test the AP race-call checker once (no commits)'
+        type: boolean
+        default: false
       hours:
         description: 'How long to keep looping (max 5.7)'
         default: '5.6'
@@ -51,8 +55,14 @@ jobs:
           out=$(echo "Reply with exactly the word OK" | claude -p --model sonnet 2>&1 || true)
           echo "Claude replied: $out"
           echo "$out" | grep -q "OK" || { echo "::error::Claude token check failed. County pages will fall back to template sentences."; exit 1; }
+      - name: AP checker test
+        if: ${{ inputs.aptest }}
+        run: |
+          node scripts/county_blurbs.mjs > /dev/null || true
+          CT_NOW=2026-11-04T03:00:00Z node scripts/ap_calls.mjs
+          cat data/model/ap_calls.json | head -c 3000
       - name: Loop
-        if: ${{ !inputs.selftest }}
+        if: ${{ !inputs.selftest && !inputs.aptest }}
         run: |
           git config user.name "county-targets-bot"
           git config user.email "county-targets-bot@users.noreply.github.com"
@@ -63,18 +73,23 @@ jobs:
           export CT_ARCHIVE_DIR=/tmp/archive_out
           end=$(( $(date +%s) + $(awk "BEGIN{print int($HOURS*3600)}") ))
           while [ "$(date +%s)" -lt "$end" ]; do
-            git pull --rebase --quiet origin main || git rebase --abort || true
+            git pull --rebase --autostash --quiet origin main || git rebase --abort || true
             node scripts/county_blurbs.mjs || echo "::warning::blurb run failed"
+            # AP race-call check runs in the background so a slow web search never delays the notes
+            if [ -f /tmp/ct_raw.json ] && ! { [ -f /tmp/ap.pid ] && kill -0 "$(cat /tmp/ap.pid)" 2>/dev/null; }; then
+              cat /tmp/ap.log 2>/dev/null | tail -5 || true
+              ( node scripts/ap_calls.mjs > /tmp/ap.log 2>&1 ) & echo $! > /tmp/ap.pid
+            fi
             if ls /tmp/archive_out/*.json.gz >/dev/null 2>&1; then
               mkdir -p /tmp/arch/raw && mv /tmp/archive_out/*.json.gz /tmp/arch/raw/
               git -C /tmp/arch add raw && git -C /tmp/arch commit -qm "Raw civicAPI archive $(date -u +%H:%MZ)" && git -C /tmp/arch push -q origin archive || echo "::warning::archive push failed"
             fi
-            if [ -f data/model/blurbs.json ] || [ -f data/model/snapshots.json ]; then
-              for f in data/model/blurbs.json data/model/snapshots.json; do [ -f "$f" ] && git add "$f"; done
+            if [ -f data/model/blurbs.json ] || [ -f data/model/snapshots.json ] || [ -f data/model/ap_calls.json ]; then
+              for f in data/model/blurbs.json data/model/snapshots.json data/model/ap_calls.json; do [ -f "$f" ] && git add "$f"; done
               if ! git diff --cached --quiet; then
                 git commit -q -m "AI notes + race snapshots $(date -u +%H:%MZ)"
                 for i in 1 2 3 4 5; do
-                  git pull --rebase --quiet origin main && git push --quiet origin HEAD:main && break
+                  git pull --rebase --autostash --quiet origin main && git push --quiet origin HEAD:main && break
                   sleep $((i*4))
                 done
               fi

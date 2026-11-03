@@ -19,7 +19,7 @@
 <meta name="twitter:description" content="Live results and county-by-county win targets for Senate, governor and nine target House races in GA, NC, OH, MI, TX and IA.">
 <meta name="twitter:image" content="https://btbegala-byte.github.io/election-night-2026/og.png">
 <meta name="theme-color" content="#0f1419">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2317365D'/%3E%3Ctext x='16' y='22.5' text-anchor='middle' font-family='Arial%2CHelvetica%2Csans-serif' font-weight='700' font-size='17' letter-spacing='-0.5' fill='%23ffffff'%3E%26%238217%3B26%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2317365D'/%3E%3Ctext x='16' y='22.5' text-anchor='middle' font-family='Arial%2CHelvetica%2Csans-serif' font-weight='700' font-size='18' fill='%23ffffff'%3E26%3C/text%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #0f1419; --panel: #171e26; --panel2: #1d2630; --line: #2a3542;
@@ -67,6 +67,8 @@
   .cand .vb { grid-column: 1 / -1; height: 3px; background: var(--panel2); border-radius: 2px; overflow: hidden; }
   .cand .vb > div { height: 100%; }
   .win { color: var(--called); font-weight: 700; margin-left: 4px; }
+  .apcall { font-size: 12.5px; color: var(--called); margin-top: 6px; }
+  .apcall a { color: var(--blue); }
   .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; gap: 8px; }
   .margin { font-weight: 700; }
   .stale { color: var(--warn); }
@@ -133,14 +135,14 @@
   </div>
 </main>
 <footer>
-  Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks reflect civicAPI’s race calls; confirm against AP or network calls before acting on them. Official state results are linked in each state header.
+  Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “AP call” marks are race calls by the Associated Press, picked up from news reports of AP’s calls and linked to the source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793729113"></script>
-<script src="county/engine.js?v=1793729113"></script>
-<script src="county/civic.js?v=1793729113"></script>
-<script src="county/widget.js?v=1793729113"></script>
-<script src="county/chat.js?v=1793729113"></script>
+<script src="county/vendor/d3.min.js?v=1793729597"></script>
+<script src="county/engine.js?v=1793729597"></script>
+<script src="county/civic.js?v=1793729597"></script>
+<script src="county/widget.js?v=1793729597"></script>
+<script src="county/chat.js?v=1793729597"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -268,7 +270,9 @@ function card(r) {
   }
   const cands = (d.candidates || []).slice().sort((a, b) => (Number(b.votes) || 0) - (Number(a.votes) || 0));
   const total = cands.reduce((s, c) => s + (Number(c.votes) || 0), 0);
-  const shown = cands.filter((c, i) => i < 4 || c.winner);
+  const call = (AP.calls || {})[r.id];
+  const isApWinner = c => !!(call && call.winner && apNameMatch(c.name, call.winner));
+  const shown = cands.filter((c, i) => i < 4 || isApWinner(c));
   const pr = Number(d.percent_reporting) || 0;
   let marginTxt = '';
   if (cands.length >= 2 && total > 0) {
@@ -283,7 +287,7 @@ function card(r) {
     const a = partyAbbr(c.party);
     const col = partyColor(c);
     return `<div class="cand">
-      <div class="nm">${a ? `<span class="pty" style="background:${col}">${a}</span>` : ''}${esc(c.name)}${c.incumbent ? ' <span class="closes">(i)</span>' : ''}${c.winner ? '<span class="win">✓ Called</span>' : ''}</div>
+      <div class="nm">${a ? `<span class="pty" style="background:${col}">${a}</span>` : ''}${esc(c.name)}${c.incumbent ? ' <span class="closes">(i)</span>' : ''}${isApWinner(c) ? '<span class="win">✓ AP call</span>' : ''}</div>
       <div class="v">${fmt(v)}</div>
       <div class="p">${total ? p.toFixed(1) + '%' : '–'}</div>
       <div class="vb"><div style="width:${Math.min(100, p)}%;background:${col}"></div></div>
@@ -296,6 +300,7 @@ function card(r) {
     </div>
     <div class="prog"><div style="width:${Math.min(100, pr)}%"></div></div>
     ${rows || '<div class="empty">No candidates listed</div>'}
+    ${call ? `<div class="apcall">AP called it for ${esc(call.winner)}${call.called_at ? ' · ' + esc(call.called_at) : ''}${call.source_url ? ` · <a href="${esc(call.source_url)}" target="_blank" rel="noopener">${esc(call.source_name || 'source')} ↗</a>` : ''}</div>` : ''}
     <div class="foot"><span>${total ? fmt(total) + ' votes' : ''}${marginTxt ? ' · <span class="margin">' + marginTxt + '</span>' : ''}</span><span>${ago(d.last_updated)}${stale}</span></div>
   </div>`;
 }
@@ -353,7 +358,7 @@ window.chatExtraContext = function () {
     if (!d || !d.candidates) { lines.push(`${r.state} ${r.label || r.name}: not loaded`); continue; }
     const tot = d.candidates.reduce((s, c) => s + (+c.votes || 0), 0);
     const cs = d.candidates.filter(c => +c.votes > 0 || d.candidates.length <= 3).slice(0, 4)
-      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${c.winner ? ' CALLED' : ''}`).join('; ');
+      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${(AP.calls || {})[r.id] && apNameMatch(c.name, AP.calls[r.id].winner) ? ' (AP CALLED WINNER)' : ''}`).join('; ');
     lines.push(`${r.state} ${r.label || r.name} [${d.percent_reporting ?? '?'}% reporting]: ${tot ? cs : 'no votes yet'}`);
   }
   const latest = {}; (SNAPS.entries || []).forEach(e => { latest[e.scope] = e; });
@@ -384,6 +389,18 @@ async function loadExitPolls() {
   }
 }
 
+
+// ---------- AP race calls (written by the GitHub job; civicAPI calls are ignored) ----------
+let AP = { calls: {} };
+function apNameMatch(a, b) {
+  const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 1 && !['jr', 'sr', 'ii', 'iii'].includes(w));
+  const A = norm(a), B = norm(b);
+  return !!(A.length && B.length && (A[A.length - 1] === B[B.length - 1] || A.some(w => B.includes(w) && w.length > 3)));
+}
+async function loadApCalls() {
+  try { AP = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { return; }
+  render();
+}
 
 // ---------- AI race snapshot (written by the GitHub job each time a state's numbers move; full log kept) ----------
 let SNAPS = { entries: [] };
@@ -446,9 +463,11 @@ function tick() {
   render();
   loadExitPolls();
   loadSnapshots();
+  loadApCalls();
   await loadAll();
   setInterval(tick, 1000);
   setInterval(loadSnapshots, 90 * 1000);
+  setInterval(loadApCalls, 90 * 1000);
   document.getElementById('refreshBtn').onclick = () => { loadAll(); loadExitPolls(); loadSnapshots(); };
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() > nextAt) { loadAll(); loadExitPolls(); loadSnapshots(); } });
 })();

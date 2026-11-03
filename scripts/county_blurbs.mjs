@@ -50,6 +50,7 @@ async function loadLive() {
   }));
 }
 await loadLive();
+if (!DRY) try { fs.writeFileSync(process.env.CT_RAW_OUT || '/tmp/ct_raw.json', JSON.stringify(RAW)); } catch (e) { /* ignore */ }
 // T1-1: archive every raw civicAPI response from this cycle (one gzipped file per cycle; the workflow pushes it to the 'archive' branch)
 if (process.env.CT_ARCHIVE_DIR && !DRY) {
   const zlib = await import('zlib');
@@ -110,11 +111,11 @@ Style: direct, peer-to-peer, like a sharp campaign analyst texting the team. No 
 Return ONLY a JSON object, no prose, no code fences:
 {"outlooks": {"<race_id>": "..."}, "counties": {"<race_id>": {"<fips>": "..."}}}`;
 
-function callClaude(prompt) {
+function callClaude(prompt, extraArgs = [], timeoutMs = 240000) {
   return new Promise((resolve, reject) => {
-    const p = spawn('claude', ['-p', '--model', MODEL, '--output-format', 'text'], { stdio: ['pipe', 'pipe', 'pipe'], env: process.env });
+    const p = spawn('claude', ['-p', '--model', MODEL, '--output-format', 'text', ...extraArgs], { stdio: ['pipe', 'pipe', 'pipe'], env: process.env });
     let out = '', err = '';
-    const timer = setTimeout(() => { p.kill('SIGKILL'); reject(new Error('timeout')); }, 240000);
+    const timer = setTimeout(() => { p.kill('SIGKILL'); reject(new Error('timeout')); }, timeoutMs);
     p.stdout.on('data', d => out += d); p.stderr.on('data', d => err += d);
     p.on('close', code => { clearTimeout(timer); code === 0 ? resolve(out) : reject(new Error(`claude exit ${code}: ${err.slice(0, 400)}`)); });
     p.stdin.end(prompt);
@@ -197,8 +198,9 @@ function stateFacts(st) {
     const tot = d.candidates.reduce((a, c) => a + (+c.votes || 0), 0); votes += tot;
     if (!tot) continue;
     const cs = d.candidates.filter(c => +c.votes > 0).sort((a, b) => b.votes - a.votes).slice(0, 3)
-      .map(c => `${c.name} (${abbr(c.party)}) ${c.votes} ${(100 * c.votes / tot).toFixed(1)}%${c.winner ? ' CALLED' : ''}`).join('; ');
-    lines.push(`${r.label || r.name}${r.target ? ' [SAM target]' : ''} [${d.percent_reporting ?? '?'}% reporting]: ${cs}`);
+      .map(c => `${c.name} (${abbr(c.party)}) ${c.votes} ${(100 * c.votes / tot).toFixed(1)}%`).join('; ');
+    const apc = apCallsNow()[r.id];
+    lines.push(`${r.label || r.name}${r.target ? ' [SAM target]' : ''} [${d.percent_reporting ?? '?'}% reporting]: ${cs}${apc ? ` — AP CALLED for ${apc.winner}` : ''}`);
   }
   const model = [];
   for (const [id, geo] of Object.entries(model_geos())) {
@@ -213,6 +215,7 @@ function stateFacts(st) {
   return { votes, text: (lines.length ? 'Race totals:\n' + lines.join('\n') : 'No votes yet.') + (model.length ? '\n\nCounty win-pace model:\n' + model.join('\n\n') : '') };
 }
 function model_geos() { return model.geos; }
+function apCallsNow() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'data/model/ap_calls.json'))).calls || {}; } catch (e) { return {}; } }
 
 const SNAP_INSTRUCTIONS = `You write the "race snapshot" at the top of an election-night results dashboard for a small Democratic-aligned team. Write from the data only; never invent numbers or calls. "Win pace" is the two-party Dem share a county or state must hit for a Dem win; the projection is the team's own model, not a race call, so call it "our model" when you cite it. Results are unofficial (civicAPI).
 For each state scope: 3-5 sentences. Lead with the top-of-ticket standing and how much is counted, then whether the Dem is on, ahead of, or behind win pace and which counties are driving it, then the SAM target districts, then any notable down-ballot result. If a previous snapshot is given, say in one clause what changed since then.
