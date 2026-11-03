@@ -220,16 +220,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793740758"></script>
-<script src="county/engine.js?v=1793740758"></script>
-<script src="county/civic.js?v=1793740758"></script>
-<script src="county/mapzoom.js?v=1793740758"></script>
-<script src="county/extras.js?v=1793740758"></script>
-<script src="county/cities.js?v=1793740758"></script>
-<script src="county/national.js?v=1793740758"></script>
-<script src="county/widget.js?v=1793740758"></script>
-<script src="county/celebrate.js?v=1793740758"></script>
-<script src="county/chat.js?v=1793740758"></script>
+<script src="county/vendor/d3.min.js?v=1793741262"></script>
+<script src="county/engine.js?v=1793741262"></script>
+<script src="county/civic.js?v=1793741262"></script>
+<script src="county/mapzoom.js?v=1793741262"></script>
+<script src="county/extras.js?v=1793741262"></script>
+<script src="county/cities.js?v=1793741262"></script>
+<script src="county/national.js?v=1793741262"></script>
+<script src="county/widget.js?v=1793741262"></script>
+<script src="county/celebrate.js?v=1793741262"></script>
+<script src="county/chat.js?v=1793741262"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -338,6 +338,26 @@ function viewIds() {
   const list = filter === 'ALL' ? RACES.filter(r => r.target || r.holder) : RACES.filter(r => r.state === filter);
   return list.slice().sort((a, b) => rank(a) - rank(b)).map(r => r.id);
 }
+// Ask Claude: before answering, load whatever the question needs that this tab hasn't fetched yet.
+// Always: the 24 Senate/governor/House races. Plus: every race in any state the question names, any district it names
+// (e.g. TX-28, SD-9, HD 118), and all races when it asks about down-ballot offices without naming a state.
+window.chatEnsureData = async function (question, onStatus) {
+  const q = String(question || ''), ql = q.toLowerCase();
+  const NAMES = { GA: 'georgia', NC: 'north carolina', OH: 'ohio', MI: 'michigan', TX: 'texas', IA: 'iowa' };
+  const states = Object.keys(NAMES).filter(st => ql.includes(NAMES[st]) || new RegExp('\\b' + st + '\\b').test(q));
+  const want = new Set(RACES.filter(r => r.target || r.holder).map(r => r.id));
+  const downBallot = /attorney general|lieutenant|lt\.? gov|secretary of state|comptroller|treasurer|auditor|commissioner|superintendent|supreme court|court|judge|justice|amendment|proposition|prop \d|ballot (measure|question)|state senate|state house|legislat|board of|railroad|land office|agricultur|insurance|labor|down[- ]?ballot|every race|all (the )?races/.test(ql);
+  for (const r of RACES) if (states.includes(r.state)) want.add(r.id);
+  if (downBallot && !states.length) RACES.forEach(r => want.add(r.id));
+  for (const m of ql.matchAll(/\b(tx|ia|mi|nc|oh)[- ]?0?(\d{1,2})\b/g)) { const lab = `${m[1].toUpperCase()}-${m[2].padStart(2, '0')}`; RACES.filter(r => r.label === lab).forEach(r => want.add(r.id)); }
+  for (const m of ql.matchAll(/\b(sd|hd|senate district|house district)[- ]?(\d{1,3})\b/g)) { const pre = /^s/.test(m[1]) ? 'SD' : 'HD'; RACES.filter(r => r.state === 'TX' && r.label === `${pre}-${m[2]}`).forEach(r => want.add(r.id)); }
+  const now = Date.now();
+  const need = [...want].filter(id => !FETCHED[id] || now - FETCHED[id] > REFRESH_MS);
+  if (!need.length) return;
+  if (onStatus) onStatus(`Loading ${need.length} more race${need.length > 1 ? 's' : ''} to answer this`);
+  await Promise.race([Promise.all(need.map(id => fetchRace(id, true))), new Promise(r => setTimeout(r, 15000))]);
+  if (onStatus) onStatus('Reading the latest results');
+};
 // on tab switch: fetch anything in the new view that has never loaded or is older than a refresh cycle
 function ensureView() {
   const now = Date.now();

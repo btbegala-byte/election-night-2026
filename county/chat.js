@@ -119,6 +119,8 @@
       const wait = add('a', '<span class="dots">Reading the latest results</span>');
       state.busy = true; send.disabled = true;
       try {
+        // make sure the races the question needs are loaded (the page only fetches what's on screen)
+        if (window.chatEnsureData) { try { await window.chatEnsureData(text, msg => { wait.innerHTML = `<span class="dots">${esc(msg)}</span>`; }); } catch (e) { /* answer with what we have */ } }
         const ctx = (window.CTWidget ? await CTWidget.summary(text) : '') + (window.chatExtraContext ? '\n\n' + window.chatExtraContext() : '');
         const asOf = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' ET';
         const j = await call({ question: text, context: ctx, history: state.history, asOf });
