@@ -53,7 +53,7 @@ For each place report, when published: men 18-29 (Dem % / Rep %), all voters (De
 Reply with ONLY this JSON:
 {"national": {"men_18_29": {"D": 0, "R": 0, "race": "U.S. House", "source_name": "...", "source_url": "https://..."}, "all_voters": {...same shape...}, "voters_18_29": {...}, "men_18_29_2024": {...}},
  "states": {"GA": {same four keys}, "NC": {...}, "OH": {...}, "MI": {...}, "TX": {...}, "IA": {...}},
- "notes": ["up to 3 short factual sentences IN YOUR OWN WORDS about young men in tonight's exit polls, each tied to a source you found"]}`;
+ "notes": ["up to 3 short factual sentences IN YOUR OWN WORDS about what tonight's exit polls show about young men (vote choice, issues, turnout), each tied to a source you found. Do NOT describe your search process; if nothing is published yet, return an empty list."]}`;
 
   const out = { ...prev, checked_at: new Date(now).toISOString() };
   let r;
@@ -64,7 +64,7 @@ Reply with ONLY this JSON:
   const nat = block(r.national); if (nat) out.national = { ...(prev.national || {}), ...Object.fromEntries(Object.entries(nat).filter(([, v]) => v)) };
   out.states = { ...(prev.states || {}) };
   for (const st of STATES) { const b = block((r.states || {})[st]); if (b) out.states[st] = { ...(prev.states || {})[st], ...Object.fromEntries(Object.entries(b).filter(([, v]) => v)) }; }
-  if (Array.isArray(r.notes)) { const n = r.notes.filter(x => typeof x === 'string' && x.length > 10).map(x => x.slice(0, 260)).slice(0, 3); if (n.length) out.notes = n; }
+  if (Array.isArray(r.notes)) { const n = r.notes.filter(x => typeof x === 'string' && x.length > 10 && !/\b(my search|I found|I could not|could not confirm|no published)\b/i.test(x)).map(x => x.slice(0, 260)).slice(0, 3); if (n.length) out.notes = n; }
   const found = (nat && nat.men1829 ? 1 : 0) + STATES.filter(st => out.states[st] && out.states[st].men1829).length;
   if (nat || STATES.some(st => (r.states || {})[st])) out.updated_at = out.checked_at;
   out.log = (prev.log || []).concat({ at: out.checked_at, found }).slice(-40);
