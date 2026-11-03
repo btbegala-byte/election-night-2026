@@ -68,7 +68,8 @@
   .cand .vb > div { height: 100%; }
   .win { color: var(--called); font-weight: 700; margin-left: 4px; }
   .apcall { font-size: 12.5px; color: var(--called); margin-top: 6px; }
-  .apcall a { color: var(--blue); }
+  .apcall a { color: var(--blue); font-weight: 700; }
+  .apcall .t { color: var(--muted); }
   .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; gap: 8px; }
   .margin { font-weight: 700; }
   .stale { color: var(--warn); }
@@ -135,14 +136,14 @@
   </div>
 </main>
 <footer>
-  Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “AP call” marks are race calls by the Associated Press, picked up from news reports of AP’s calls and linked to the source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
+  Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793729597"></script>
-<script src="county/engine.js?v=1793729597"></script>
-<script src="county/civic.js?v=1793729597"></script>
-<script src="county/widget.js?v=1793729597"></script>
-<script src="county/chat.js?v=1793729597"></script>
+<script src="county/vendor/d3.min.js?v=1793730039"></script>
+<script src="county/engine.js?v=1793730039"></script>
+<script src="county/civic.js?v=1793730039"></script>
+<script src="county/widget.js?v=1793730039"></script>
+<script src="county/chat.js?v=1793730039"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -287,7 +288,7 @@ function card(r) {
     const a = partyAbbr(c.party);
     const col = partyColor(c);
     return `<div class="cand">
-      <div class="nm">${a ? `<span class="pty" style="background:${col}">${a}</span>` : ''}${esc(c.name)}${c.incumbent ? ' <span class="closes">(i)</span>' : ''}${isApWinner(c) ? '<span class="win">✓ AP call</span>' : ''}</div>
+      <div class="nm">${a ? `<span class="pty" style="background:${col}">${a}</span>` : ''}${esc(c.name)}${c.incumbent ? ' <span class="closes">(i)</span>' : ''}${isApWinner(c) ? '<span class="win">✓ Called</span>' : ''}</div>
       <div class="v">${fmt(v)}</div>
       <div class="p">${total ? p.toFixed(1) + '%' : '–'}</div>
       <div class="vb"><div style="width:${Math.min(100, p)}%;background:${col}"></div></div>
@@ -300,7 +301,7 @@ function card(r) {
     </div>
     <div class="prog"><div style="width:${Math.min(100, pr)}%"></div></div>
     ${rows || '<div class="empty">No candidates listed</div>'}
-    ${call ? `<div class="apcall">AP called it for ${esc(call.winner)}${call.called_at ? ' · ' + esc(call.called_at) : ''}${call.source_url ? ` · <a href="${esc(call.source_url)}" target="_blank" rel="noopener">${esc(call.source_name || 'source')} ↗</a>` : ''}</div>` : ''}
+    ${call ? callLine(call) : ''}
     <div class="foot"><span>${total ? fmt(total) + ' votes' : ''}${marginTxt ? ' · <span class="margin">' + marginTxt + '</span>' : ''}</span><span>${ago(d.last_updated)}${stale}</span></div>
   </div>`;
 }
@@ -358,7 +359,7 @@ window.chatExtraContext = function () {
     if (!d || !d.candidates) { lines.push(`${r.state} ${r.label || r.name}: not loaded`); continue; }
     const tot = d.candidates.reduce((s, c) => s + (+c.votes || 0), 0);
     const cs = d.candidates.filter(c => +c.votes > 0 || d.candidates.length <= 3).slice(0, 4)
-      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${(AP.calls || {})[r.id] && apNameMatch(c.name, AP.calls[r.id].winner) ? ' (AP CALLED WINNER)' : ''}`).join('; ');
+      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${(AP.calls || {})[r.id] && apNameMatch(c.name, AP.calls[r.id].winner) ? ' (CALLED WINNER, by ' + ((AP.calls[r.id].callers || []).map(x => x.caller).join(', ') || 'AP') + ')' : ''}`).join('; ');
     lines.push(`${r.state} ${r.label || r.name} [${d.percent_reporting ?? '?'}% reporting]: ${tot ? cs : 'no votes yet'}`);
   }
   const latest = {}; (SNAPS.entries || []).forEach(e => { latest[e.scope] = e; });
@@ -396,6 +397,14 @@ function apNameMatch(a, b) {
   const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 1 && !['jr', 'sr', 'ii', 'iii'].includes(w));
   const A = norm(a), B = norm(b);
   return !!(A.length && B.length && (A[A.length - 1] === B[B.length - 1] || A.some(w => B.includes(w) && w.length > 3)));
+}
+const CALLER_ORDER = ['AP', 'NBC News', 'CNN', 'ABC News', 'CBS News', 'Fox News', 'Decision Desk HQ'];
+function callLine(call) {
+  const cs = (call.callers || [{ caller: 'AP', winner: call.winner, called_at: call.called_at, source_url: call.source_url }]).slice()
+    .sort((a, b) => CALLER_ORDER.indexOf(a.caller) - CALLER_ORDER.indexOf(b.caller));
+  const winners = [...new Set(cs.map(c => c.winner))];
+  const one = c => `<a href="${esc(c.source_url)}" target="_blank" rel="noopener" title="${esc(c.source_name || '')}">${esc(c.caller)}</a>${c.called_at ? ' <span class="t">' + esc(c.called_at) + '</span>' : ''}${winners.length > 1 ? ' (' + esc(c.winner) + ')' : ''}`;
+  return `<div class="apcall">${winners.length > 1 ? '⚠ Calls disagree:' : 'Called for ' + esc(call.winner) + ' by'} ${cs.map(one).join(' · ')}</div>`;
 }
 async function loadApCalls() {
   try { AP = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { return; }

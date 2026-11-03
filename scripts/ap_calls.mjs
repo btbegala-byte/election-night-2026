@@ -1,4 +1,4 @@
-// AP race-call checker. Runs alongside county_blurbs.mjs in the GitHub job.
+// Race-call checker (AP plus the major network decision desks). Runs alongside county_blurbs.mjs in the GitHub job.
 // Reads the civicAPI pull county_blurbs.mjs just made (/tmp/ct_raw.json) so it never refetches,
 // and asks Claude Code (with web search) whether AP has called the races that are due for a check.
 import fs from 'fs';
@@ -34,8 +34,20 @@ const FINAL_CLOSE = { GA: '2026-11-04T00:00:00Z', NC: '2026-11-04T00:30:00Z', OH
   MI: '2026-11-04T02:00:00Z', IA: '2026-11-04T02:00:00Z', TX: '2026-11-04T02:00:00Z' };   // MI/TX statewide: western U.P. / El Paso close 9 pm ET
 const TX_EARLY_CLOSE = '2026-11-04T01:00:00Z';   // TX races wholly in Central time close at 8 pm ET
 const TX_8PM = new Set(['US House 9', 'US House 15', 'US House 28', 'US House 34', 'US House 35']);
+// Decision desks whose calls we show. Outlets that just carry AP's call count as AP.
+const CALLERS = [
+  ['AP', /associated press|\bap\b|apnews/i],
+  ['NBC News', /\bnbc\b|msnbc/i],
+  ['CNN', /\bcnn\b/i],
+  ['ABC News', /\babc\b/i],
+  ['CBS News', /\bcbs\b/i],
+  ['Fox News', /\bfox\b/i],
+  ['Decision Desk HQ', /decision desk|\bddhq\b/i],
+];
+const canonCaller = x => { for (const [name, re] of CALLERS) if (re.test(String(x || ''))) return name; return null; };
 const ap = fs.existsSync(AP_FILE) ? JSON.parse(fs.readFileSync(AP_FILE)) : { calls: {}, checks: {}, log: [] };
 
+for (const [id, c] of Object.entries(ap.calls)) if (c && !c.callers) ap.calls[id] = { winner: c.winner, race: c.race, callers: [{ caller: 'AP', winner: c.winner, called_at: c.called_at, source_url: c.source_url, source_name: c.source_name, found_at: c.found_at }] };
 function closeFor(r) {
   if (r.state === 'TX' && (TX_8PM.has(r.name) || r.group === 'stsen' || r.group === 'sthouse')) return Date.parse(TX_EARLY_CLOSE);
   return Date.parse(FINAL_CLOSE[r.state]);
@@ -48,7 +60,14 @@ function raceSnap(r) {
   return { cs, tot, pr: +d.percent_reporting || 0, margin };
 }
 function dueReasons(r, now) {
-  if (ap.calls[r.id]) return null;                       // already called
+  const called = ap.calls[r.id];
+  if (called) {
+    const names = new Set(called.callers.map(c => c.caller));
+    const first = Math.min(...called.callers.map(c => Date.parse(c.found_at)));
+    if ((names.has('AP') && names.size >= 3) || now - first > 120 * 60000) return null;   // enough callers, or 2 hours since first call
+    const ck = ap.checks[r.id];
+    return !ck || (now - Date.parse(ck.at)) / 60000 >= 20 ? `already called by ${[...names].join(', ')}; looking for other desks' calls` : null;
+  }
   const close = closeFor(r);
   if (!(now >= close)) return null;                      // AP never calls before the final poll close
   const sn = raceSnap(r); if (!sn) return null;
@@ -76,7 +95,7 @@ async function apCalls() {
     if (PRIORITY(r) === 3 && !/State (Senate|House)/.test(r.name) && (raceSnap(r) || {}).pr < 60 && ap.checks[r.id]) continue;
     due.push({ r, why });
   }
-  if (!due.length) { console.log('AP: nothing due'); return; }
+  if (!due.length) { console.log('Race calls: nothing due'); return; }
   due.sort((a, b) => PRIORITY(a.r) - PRIORITY(b.r) || (Date.parse((ap.checks[a.r.id] || {}).at || 0) - Date.parse((ap.checks[b.r.id] || {}).at || 0)));
   const batch = due.slice(0, AP_BATCH);
   const list = batch.map(({ r, why }) => {
@@ -84,36 +103,45 @@ async function apCalls() {
     return `- id ${r.id}: ${STATES[r.state] || r.state} ${r.label || r.name} (2026 general, Nov 3). Candidates: ${sn.cs.slice(0, 4).map(c => `${c.name} (${c.party})`).join(', ')}. ` +
       `Unofficial count so far: ${sn.tot ? sn.cs.slice(0, 2).map(c => `${c.name} ${c.votes}`).join(' vs ') + `, ${sn.pr}% reporting` : 'no votes yet'}. Why checking now: ${why}.`;
   }).join('\n');
-  const prompt = `Check whether The Associated Press (AP) has called (declared a winner in) each race below in the November 3, 2026 U.S. general election. Use web search; look for AP's own race-call reports (apnews.com) or news reports that explicitly attribute the call to the Associated Press ("AP declared", "according to The Associated Press", "AP race call").
+  const prompt = `Check whether any major news decision desk has called (declared or projected a winner in) each race below in the November 3, 2026 U.S. general election. Use web search.
+Callers that count: The Associated Press (AP), NBC News, CNN, ABC News, CBS News, Fox News, Decision Desk HQ. Outlets that publish AP's call (newspapers, local TV, NYT, Washington Post) count as an AP call: record the caller as AP and link the page you found.
 Rules:
-- Report called=true ONLY if a source explicitly says the AP called or declared the race. Calls by other decision desks (CNN, NBC, ABC, CBS, Fox, DDHQ, NYT) do not count. Candidate victory claims and concessions do not count. Leads do not count.
+- Report a call ONLY if a source explicitly says that decision desk called, declared or projected the winner. Candidate victory claims, concessions, leads and "expected to win" don't count.
 - The winner must be one of the listed candidates; use the name as listed.
-- If you can't find an explicit AP call, report called=false. Being wrong in the false direction is fine; a false positive is not.
-- Include the source URL and the time of the call if the source gives it (e.g. "9:14 PM ET").
+- Give one entry per decision desk that has called the race, each with the URL of the page that reports that desk's call, and the call time if the source gives it (e.g. "9:14 PM ET").
+- If you find no call, return an empty list. Missing a call is fine; a false call is not.
 Races:
 ${list}
 
-Return ONLY a JSON object, no prose: {"<id>": {"called": true|false, "winner": "<name or null>", "called_at": "<time or null>", "source_url": "<url or null>", "source_name": "<outlet or null>", "evidence": "<10 words max from the source, or null>"}}`;
+Return ONLY a JSON object, no prose: {"<id>": {"calls": [{"caller": "<AP|NBC News|CNN|ABC News|CBS News|Fox News|Decision Desk HQ>", "winner": "<name>", "called_at": "<time or null>", "source_url": "<url>", "source_name": "<outlet whose page you're linking>", "evidence": "<10 words max from the source>"}]}}`;
   let reply = null;
   if (DRY) { console.log('AP prompt:\n' + prompt); return; }
   try { reply = parseJSON(await callClaude(prompt, ['--allowedTools', 'WebSearch', 'WebFetch'], 420000)); }
-  catch (e) { console.error('AP check failed:', e.message); }
+  catch (e) { console.error('Race-call check failed:', e.message); }
   const at = process.env.CT_NOW || new Date().toISOString();
   for (const { r, why } of batch) {
     const sn = raceSnap(r);
     ap.checks[r.id] = { at, votes: sn.tot, pr: sn.pr, why, ok: !!reply };
     const v = reply && reply[String(r.id)];
-    if (v && v.called === true && v.winner && v.source_url) {
-      const candOk = sn.cs.some(c => c.name && v.winner && (c.name.toLowerCase().includes(String(v.winner).toLowerCase().split(' ').slice(-1)[0]) ));
-      if (!candOk) { ap.log.push({ at, id: r.id, note: `rejected: winner "${v.winner}" not a listed candidate` }); continue; }
-      ap.calls[r.id] = { winner: v.winner, called_at: v.called_at || null, source_url: v.source_url, source_name: v.source_name || null, evidence: v.evidence || null, found_at: at, race: `${r.state} ${r.label || r.name}` };
-      ap.log.push({ at, id: r.id, note: `AP call found: ${v.winner}` });
-      console.log('AP call found:', r.state, r.name, '->', v.winner);
+    const found = (v && Array.isArray(v.calls)) ? v.calls : [];
+    for (const c of found) {
+      const caller = canonCaller(c.caller);
+      if (!caller || !c.winner || !/^https?:\/\//.test(String(c.source_url || ''))) continue;
+      const lastName = n => String(n || '').toLowerCase().replace(/[.,]/g, '').split(/\s+/).filter(w => !['jr', 'sr', 'ii', 'iii', 'iv'].includes(w)).slice(-1)[0] || '';
+      const last = lastName(c.winner);
+      if (!sn.cs.some(x => String(x.name || '').toLowerCase().includes(last))) { ap.log.push({ at, id: r.id, note: `rejected ${caller}: winner "${c.winner}" not a listed candidate` }); continue; }
+      const ent = ap.calls[r.id] = ap.calls[r.id] || { winner: c.winner, race: `${r.state} ${r.label || r.name}`, callers: [] };
+      if (ent.callers.some(x => x.caller === caller)) continue;
+      ent.callers.push({ caller, winner: c.winner, called_at: c.called_at || null, source_url: c.source_url, source_name: c.source_name || null, evidence: c.evidence || null, found_at: at });
+      const winners = new Set(ent.callers.map(x => lastName(x.winner)));
+      ent.conflict = winners.size > 1;
+      ap.log.push({ at, id: r.id, note: `${caller} call found: ${c.winner}` });
+      console.log('Call found:', r.state, r.name, caller, '->', c.winner);
     }
   }
   ap.updated_at = at;
   ap.log = ap.log.slice(-500);
   fs.writeFileSync(AP_FILE, JSON.stringify(ap));
-  console.log('AP: checked', batch.map(b => b.r.id).join(','));
+  console.log('Race calls: checked', batch.map(b => b.r.id).join(','));
 }
 await apCalls();

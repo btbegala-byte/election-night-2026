@@ -400,21 +400,39 @@ v2 uses a single 0.08. These figures are the starting point for fitting the band
 - three-way race support;
 - relabeling verdicts as "vs. even path."
 
-## 10. Race calls: AP only
+## 10. Race calls: major decision desks, sourced
 
-civicAPI's race calls are not used anywhere: not on the cards, not in the AI notes, not in the chat. Race calls come from the Associated Press. AP's own data feed is a paid license, and AP's site can't be read automatically from this setup, so `scripts/ap_calls.mjs` has Claude Code search the web for **reports of AP's call**. A call counts only if a source explicitly attributes it to the AP. Calls by other networks, candidate claims and leads don't count, and every call is shown with its source link so a person can confirm it.
+civicAPI's race calls are not used. A race shows as called when one of these decision desks has called it:
+- The Associated Press
+- NBC News
+- CNN
+- ABC News
+- CBS News
+- Fox News
+- Decision Desk HQ
 
-**When a race gets checked.** A race is checked only after its final poll close, since AP never calls earlier. The final closes are:
+Outlets that publish AP's call, such as newspapers, local TV, NYT and the Washington Post, count as AP.
+
+**How calls are found.** `scripts/ap_calls.mjs` has Claude Code search the web for reports of each desk's call. A call counts only if a source explicitly attributes it to that desk. Candidate claims, concessions and leads don't count. A call is dropped if:
+- the named winner isn't on the ballot;
+- the caller isn't one of the desks above;
+- there's no source link.
+
+**How calls are shown.** Each race's card lists every desk that has called it, with the call time when the source gives one, and each desk's name links to the page that reported its call. If desks name different winners, the card flags it ("⚠ Calls disagree").
+
+**When a race gets checked.** A race is checked only after its final poll close, since no desk calls earlier. The final closes are:
 - GA: 7:00 pm ET
 - NC and OH: 7:30 pm
 - MI, IA and statewide TX: 9:00 pm
 - Texas House and legislative races in Central time: 8:00 pm
 
 After that, a race is checked when any of these happens:
-1. **Poll close itself.** Its first check comes right after poll close, because AP calls clear races at poll close.
+1. **Poll close itself.** Its first check comes right after poll close, because clear races are called at poll close.
 2. **A big vote drop.** At least 10 more points reporting, or at least 15,000 more votes (or 15% more than at the last check).
 3. **A clear margin.** A margin of 10 or more points with at least 20% reporting, rechecked every 15 minutes.
 4. **Nearly done.** At least 95% reporting, rechecked every 15 minutes.
 5. **Periodic.** A recheck every 40 minutes otherwise.
 
-A race is never checked more than once every 8 minutes. Each cycle checks at most 8 races in one Claude call, in priority order: Senate and governor first, then SAM targets, then other House races, then everything else. A called race is never checked again. The checker runs in the background of the AI job, so a slow search never delays the notes. Results, check history and a log are written to `data/model/ap_calls.json`.
+**After the first call**, the race is rechecked every 20 minutes to pick up other desks' calls. That stops once AP and at least two other desks have called it, or two hours after the first call.
+
+**Limits.** A race is never checked more than once every 8 minutes. Each cycle checks at most 8 races in one Claude call, in priority order: Senate and governor first, then SAM targets, then other House races, then everything else. The checker runs in the background of the AI job. Calls, check history and a log are in `data/model/ap_calls.json`.

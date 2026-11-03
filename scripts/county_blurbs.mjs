@@ -200,7 +200,7 @@ function stateFacts(st) {
     const cs = d.candidates.filter(c => +c.votes > 0).sort((a, b) => b.votes - a.votes).slice(0, 3)
       .map(c => `${c.name} (${abbr(c.party)}) ${c.votes} ${(100 * c.votes / tot).toFixed(1)}%`).join('; ');
     const apc = apCallsNow()[r.id];
-    lines.push(`${r.label || r.name}${r.target ? ' [SAM target]' : ''} [${d.percent_reporting ?? '?'}% reporting]: ${cs}${apc ? ` — AP CALLED for ${apc.winner}` : ''}`);
+    lines.push(`${r.label || r.name}${r.target ? ' [SAM target]' : ''} [${d.percent_reporting ?? '?'}% reporting]: ${cs}${apc ? ` — CALLED for ${apc.winner} by ${(apc.callers || [{ caller: 'AP' }]).map(c => c.caller).join(', ')}${apc.conflict ? ' (callers disagree on the winner)' : ''}` : ''}`);
   }
   const model = [];
   for (const [id, geo] of Object.entries(model_geos())) {
