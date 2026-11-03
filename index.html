@@ -136,11 +136,11 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks reflect civicAPI’s race calls; confirm against AP or network calls before acting on them. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793728584"></script>
-<script src="county/engine.js?v=1793728584"></script>
-<script src="county/civic.js?v=1793728584"></script>
-<script src="county/widget.js?v=1793728584"></script>
-<script src="county/chat.js?v=1793728584"></script>
+<script src="county/vendor/d3.min.js?v=1793729113"></script>
+<script src="county/engine.js?v=1793729113"></script>
+<script src="county/civic.js?v=1793729113"></script>
+<script src="county/widget.js?v=1793729113"></script>
+<script src="county/chat.js?v=1793729113"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -160,7 +160,17 @@ if (window.CTWidget) CTWidget.init({ base: 'data/', getRaw: key => { const r = R
 let RACES = [];          // from races.json
 const DATA = {};         // id -> latest race detail
 const FAILS = {};        // id -> consecutive failures
-let filter = 'ALL';
+let filter = (() => {   // deep link: ?state=GA (or #GA) opens that state's dashboard
+  const q = new URLSearchParams(location.search).get('state') || location.hash.replace('#', '');
+  const st = (q || '').toUpperCase();
+  return ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'].includes(st) ? st : 'ALL';
+})();
+function syncUrl() {
+  const u = new URL(location.href);
+  if (filter === 'ALL') u.searchParams.delete('state'); else u.searchParams.set('state', filter);
+  u.hash = '';
+  history.replaceState(null, '', u);
+}
 let nextAt = 0;
 let loading = false;
 
@@ -413,7 +423,7 @@ function buildFilters() {
   const f = document.getElementById('filters');
   const opts = ['ALL', ...STATE_ORDER];
   f.innerHTML = opts.map(o => `<button class="chip ${o === filter ? 'on' : ''}" data-f="${o}">${o === 'ALL' ? 'All states' : o}</button>`).join('');
-  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; buildFilters(); render(); renderSnapshot(); });
+  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); window.scrollTo({ top: 0 }); });
 }
 
 function tick() {
@@ -424,6 +434,7 @@ function tick() {
 }
 
 (async function init() {
+  if (filter !== 'ALL') syncUrl();
   buildFilters();
   try {
     const j = await fetchWithTimeout('races.json?t=' + Date.now(), 15000);
