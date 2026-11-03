@@ -103,8 +103,8 @@
     const opts = options(st);
     const m = W.mounts[st] = { el, st, sel: opts[0].v, mode: 'result', county: null, opts };
     el.innerHTML = `<div class="ctw">
-      <div class="ctw-top"><span class="t">County targets</span>
-        <select aria-label="Race">${opts.map(o => `<option value="${o.v}">${esc(o.label)}</option>`).join('')}</select>
+      <div class="ctw-top"><label class="t" for="ctw-sel-${st}">Race displaying:</label>
+        <select id="ctw-sel-${st}" aria-label="Race displaying">${opts.map(o => `<option value="${o.v}">${esc(o.label)}</option>`).join('')}</select>
         <span class="seg"><button data-m="result" class="on">Result</button><button data-m="pace">vs. win pace</button><button data-m="target">Win pace</button><button data-m="rep">% reporting</button><button data-m="shift">Shift vs. 2024</button><button data-m="turnout">Turnout vs. 2022</button></span>
         <a class="full" target="_blank" rel="noopener">Full map ↗</a></div>
       <div class="ctw-body"><div><svg></svg><div class="leg"></div></div><div class="side"><div class="ol"></div><div class="det"></div></div></div></div>`;
