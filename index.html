@@ -56,7 +56,7 @@
   .card-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
   .race { font-weight: 700; font-size: 15px; }
   .tag { font-size: 11px; color: var(--warn); border: 1px solid #5a4415; border-radius: 4px; padding: 0 5px; font-weight: 400; white-space: nowrap; }
-  .race .tag { display: table; margin-top: 4px; }
+  .race .tag { margin-left: 8px; vertical-align: 2px; }
   .rep-pct { color: var(--muted); font-size: 12px; white-space: nowrap; }
   .prog { height: 4px; background: var(--panel2); border-radius: 2px; margin: 6px 0 8px; overflow: hidden; }
   .prog > div { height: 100%; background: var(--blue); }
@@ -174,13 +174,13 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793731274"></script>
-<script src="county/engine.js?v=1793731274"></script>
-<script src="county/civic.js?v=1793731274"></script>
-<script src="county/mapzoom.js?v=1793731274"></script>
-<script src="county/cities.js?v=1793731274"></script>
-<script src="county/widget.js?v=1793731274"></script>
-<script src="county/chat.js?v=1793731274"></script>
+<script src="county/vendor/d3.min.js?v=1793731618"></script>
+<script src="county/engine.js?v=1793731618"></script>
+<script src="county/civic.js?v=1793731618"></script>
+<script src="county/mapzoom.js?v=1793731618"></script>
+<script src="county/cities.js?v=1793731618"></script>
+<script src="county/widget.js?v=1793731618"></script>
+<script src="county/chat.js?v=1793731618"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -303,7 +303,7 @@ function card(r) {
   const label = r.label || r.name.replace(new RegExp('^' + STATE_INFO[r.state].name + ' '), '');
   if (!d) {
     return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}">
-      <div class="card-top"><div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM target</span>' : ''}</div></div>
+      <div class="card-top"><div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM Target</span>' : ''}</div></div>
       <div class="empty">${FAILS[r.id] ? 'Not loading from civicAPI right now' : 'Loading…'}</div></div>`;
   }
   const cands = (d.candidates || []).slice().sort((a, b) => (Number(b.votes) || 0) - (Number(a.votes) || 0));
@@ -333,7 +333,7 @@ function card(r) {
   }).join('');
   return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}">
     <div class="card-top">
-      <div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM target</span>' : ''}</div>
+      <div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM Target</span>' : ''}</div>
       <div class="rep-pct">${pr ? pr.toFixed(0) + '% in' : 'No votes yet'}</div>
     </div>
     <div class="prog"><div style="width:${Math.min(100, pr)}%"></div></div>
