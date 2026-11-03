@@ -217,16 +217,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793736725"></script>
-<script src="county/engine.js?v=1793736725"></script>
-<script src="county/civic.js?v=1793736725"></script>
-<script src="county/mapzoom.js?v=1793736725"></script>
-<script src="county/extras.js?v=1793736725"></script>
-<script src="county/cities.js?v=1793736725"></script>
-<script src="county/national.js?v=1793736725"></script>
-<script src="county/widget.js?v=1793736725"></script>
-<script src="county/celebrate.js?v=1793736725"></script>
-<script src="county/chat.js?v=1793736725"></script>
+<script src="county/vendor/d3.min.js?v=1793737747"></script>
+<script src="county/engine.js?v=1793737747"></script>
+<script src="county/civic.js?v=1793737747"></script>
+<script src="county/mapzoom.js?v=1793737747"></script>
+<script src="county/extras.js?v=1793737747"></script>
+<script src="county/cities.js?v=1793737747"></script>
+<script src="county/national.js?v=1793737747"></script>
+<script src="county/widget.js?v=1793737747"></script>
+<script src="county/celebrate.js?v=1793737747"></script>
+<script src="county/chat.js?v=1793737747"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -727,7 +727,9 @@ let celDataLoaded = false;   // set after the first full results load, so old ca
 function checkCelebrations() {
   if (!window.CTCelebrate || !RACES.length || !celDataLoaded) return;
   const now = Date.now();
-  for (const r of RACES.filter(x => x.target)) {
+  // SAM target districts, plus Senate and governor races in the six states (not the other Texas races)
+  const statewide = x => !x.target && x.holder && /US Senate|^Governor$/.test(x.label || x.name);
+  for (const r of RACES.filter(x => x.target || statewide(x))) {
     const call = (AP.calls || {})[r.id];
     if (!call || !call.winner || call.conflict || celSeen.has(String(r.id))) continue;
     const d = DATA[r.id]; if (!d || !d.candidates) continue;              // wait until results load so we know the party
@@ -740,22 +742,26 @@ function checkCelebrations() {
     const n = +((r.name.match(/(\d+)\s*$/) || [])[1] || 0);
     const flip = r.holder && r.holder !== 'D';
     const by = (call.callers || []).map(c => c.caller).slice(0, 3);
+    const sw = statewide(r), office = /Senate/.test(r.label || r.name) ? 'Senate' : 'Governor';
     CTCelebrate.enqueue({
-      race: r.label, winner: w.name,
-      sub: `${STATE_INFO[r.state].name}${n ? `'s ${ordinal(n)} District` : ''}${flip ? ' · flips the seat blue' : ''}`,
+      kick: sw ? 'Race called' : 'Race called · SAM target',
+      race: sw ? `${r.state} ${office}` : r.label, winner: w.name,
+      sub: sw ? `${STATE_INFO[r.state].name} · ${office === 'Senate' ? (/special/i.test(r.label || r.name) ? 'U.S. Senate (special)' : 'U.S. Senate') : 'Governor'}${flip ? ' · flips the seat blue' : ''}`
+              : `${STATE_INFO[r.state].name}${n ? `'s ${ordinal(n)} District` : ''}${flip ? ' · flips the seat blue' : ''}`,
       by: by.length ? 'Called by ' + by.join(', ') : ''
     });
   }
   celPrimed = true;
 }
-// ?celebrate=test runs the real pipeline: once results load, it pretends AP just called three SAM target districts
+// ?celebrate=test runs the real pipeline: once results load, it pretends AP just called two SAM target districts and a Senate race
 // for their actual Democratic candidates. Nothing is saved, so real calls later tonight still celebrate.
 const CEL_TEST = new URL(location.href).searchParams.get('celebrate') === 'test';
 function celTestCalls() {
   if (!CEL_TEST || celTestCalls.done) return; celTestCalls.done = true;
   celSeen = new Set();
   const now = new Date().toISOString(); let n = 0;
-  for (const r of RACES.filter(x => x.target)) {
+  const pool = RACES.filter(x => x.target).slice(0, 2).concat(RACES.filter(x => x.holder && /US Senate/.test(x.label || x.name)));
+  for (const r of pool) {
     const d = DATA[r.id], dem = d && (d.candidates || []).find(c => partyAbbr(c.party) === 'D'); if (!dem) continue;
     AP.calls = AP.calls || {};
     AP.calls[r.id] = { winner: dem.name, race: r.label, callers: [{ caller: 'AP (TEST)', winner: dem.name, called_at: 'test', source_url: location.href, source_name: 'test mode', found_at: now }] };
