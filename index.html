@@ -365,7 +365,7 @@ function renderSnapshot() {
   const wasOpen = el.querySelector('details') && el.querySelector('details').open;
   if (!list.length) {
     el.innerHTML = `<div class="head"><h2>Race snapshot · ${esc(name)}</h2></div>
-      <div class="empty">Claude writes a snapshot here each time new votes come in, starting with Georgia's first returns after 7:00 pm ET. Every version is kept, so you can scroll back through the night.</div>`;
+      <div class="txt">${scope === 'ALL' ? 'First polls close at 7:00 pm ET' : 'Polls close at ' + ({ GA: '7:00', NC: '7:30', OH: '7:30', MI: '8:00', TX: '8:00', IA: '9:00' }[scope]) + ' pm ET'}</div>`;
     return;
   }
   const cur = list[list.length - 1], older = list.slice(0, -1).reverse();
