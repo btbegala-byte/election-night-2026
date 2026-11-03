@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>County Targets · Election Night 2026</title>
+<style>
+:root{
+  --bg:#f6f5f2; --surface:#fcfcfb; --line:#e3e1dc; --line2:#d0cec7;
+  --ink:#0b0b0b; --ink2:#52514e; --ink3:#7a7974;
+  --d1:#cde2fb; --d2:#86b6ef; --d3:#3987e5; --d4:#1c5cab; --d5:#0d366b;
+  --r1:#f9d3d0; --r2:#f0a19b; --r3:#e34948; --r4:#b0302f; --r5:#7a1d1d;
+  --mid:#e6e4de; --wait:#f1f0ec; --good:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --accent:#17365D;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#121211; --surface:#1a1a19; --line:#2c2c2a; --line2:#3a3a37;
+  --ink:#f0efec; --ink2:#c3c2b7; --ink3:#8f8e88;
+  --mid:#383835; --wait:#222220; --accent:#86b6ef;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Calibri,Roboto,sans-serif}
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding:14px 20px 8px}
+header h1{font-size:18px;margin:0;letter-spacing:-.01em}
+header .sub{color:var(--ink2);font-size:13px}
+header .status{margin-left:auto;font-size:12px;color:var(--ink2);display:flex;gap:10px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink3);display:inline-block}
+.dot.live{background:var(--good)} .dot.stale{background:var(--warn)} .dot.demo{background:#6250d6}
+nav{padding:0 20px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.tabs .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-right:4px}
+button.tab{border:1px solid var(--line2);background:var(--surface);color:var(--ink);border-radius:6px;padding:5px 9px;font:inherit;font-size:13px;cursor:pointer;position:relative}
+button.tab:hover{border-color:var(--ink3)}
+button.tab[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+button.tab .pip{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;border:2px solid var(--bg)}
+.controls{display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line)}
+.controls label{font-size:12px;color:var(--ink2);display:flex;gap:6px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--ink2);padding:4px 9px;font:inherit;font-size:12px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+input[type=range]{width:120px}
+main{display:grid;align-items:start;grid-template-columns:minmax(0,1.45fr) minmax(320px,1fr);gap:16px;padding:16px 20px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+#mapcard{padding:8px;position:relative;min-height:420px}
+#map{width:100%;height:auto;display:block}
+#map path.c{stroke:var(--surface);stroke-width:.6;cursor:pointer;vector-effect:non-scaling-stroke}
+#map path.c:hover{stroke:var(--ink);stroke-width:1.5}
+#map path.c.sel{stroke:var(--ink);stroke-width:2.2}
+#map path.ctx{fill:var(--wait);stroke:var(--line);stroke-width:.5;opacity:.6;vector-effect:non-scaling-stroke}
+.legend{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--ink2);padding:4px 8px;flex-wrap:wrap}
+.legend .sw{width:22px;height:10px;border-radius:2px;display:inline-block}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:7px 9px;border-radius:6px;max-width:260px;z-index:9;display:none;line-height:1.35}
+.tip b{font-weight:600}
+.outlook h2,.detail h2{margin:0 0 2px;font-size:15px}
+.big{font-size:34px;font-weight:650;letter-spacing:-.02em;line-height:1.1}
+.row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+.kv{font-size:12px;color:var(--ink2)} .kv b{display:block;font-size:16px;color:var(--ink);font-weight:600}
+.chip{display:inline-flex;gap:5px;align-items:center;font-size:12px;font-weight:600;padding:3px 8px;border-radius:999px;border:1px solid var(--line2);white-space:nowrap}
+.chip.good{color:#0b7d0b;border-color:#0ca30c66;background:#0ca30c14}
+.chip.bad{color:#b02b2b;border-color:#d03b3b66;background:#d03b3b12}
+.chip.neutral{color:var(--ink2)}
+.chip.waiting,.chip.early{color:var(--ink3)}
+@media (prefers-color-scheme: dark){.chip.good{color:#5fd35f}.chip.bad{color:#ff8a8a}}
+.ai{margin:10px 0 4px;padding:10px 12px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:0 6px 6px 0;font-size:13.5px}
+.ai .meta{display:block;font-size:11px;color:var(--ink3);margin-top:5px}
+.facts{font-size:12.5px;color:var(--ink2);margin:6px 0}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:12.5px}
+.lists h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin:0 0 4px;font-weight:600}
+.lists a{color:var(--ink);text-decoration:none;display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dotted var(--line);cursor:pointer}
+.lists a span{color:var(--ink2);font-variant-numeric:tabular-nums}
+.detail{margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:5px 6px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--ink2);font-size:11px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+tr.live td{font-weight:650}
+tr.pace td{color:var(--ink2)}
+#tablecard{margin:0 20px 24px}
+#tablecard .scroll{max-height:520px;overflow:auto}
+#tbl tbody tr{cursor:pointer} #tbl tbody tr:hover{background:var(--bg)}
+.note{font-size:11.5px;color:var(--ink3);margin-top:8px}
+.warn{font-size:12px;color:#8a5a00;background:#fab21922;border:1px solid #fab21966;border-radius:6px;padding:6px 9px;margin:8px 0}
+@media (prefers-color-scheme: dark){.warn{color:#f5c76a}}
+.muted{color:var(--ink3)}
+.search{border:1px solid var(--line2);border-radius:6px;padding:4px 8px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px}
+footer{padding:0 20px 30px;font-size:11.5px;color:var(--ink3);max-width:1100px}
+</style>
+</head>
+<body>
+<header>
+  <h1>County Targets</h1>
+  <span class="sub">What each county has to deliver for a Democratic win · Nov 3, 2026</span>
+  <span class="status"><span class="dot" id="dot"></span><span id="statusText">Loading…</span></span>
+</header>
+<nav>
+  <div class="tabs" id="stateTabs"><span class="lbl">Statewide</span></div>
+  <div class="tabs" id="cdTabs"><span class="lbl">Districts</span></div>
+</nav>
+<div class="controls">
+  <label id="raceWrap">Race <span class="seg" id="raceSeg"></span></label>
+  <label>Color <span class="seg" id="colorSeg">
+    <button data-v="pace" aria-pressed="true">vs. win pace</button><button data-v="result">Result</button><button data-v="target">Win pace</button></span></label>
+  <label title="The two-party Dem share the geography has to reach. 50.0% = bare win.">Win target <input type="range" id="target" min="50" max="55" step="0.5" value="50"> <b id="targetV">50.0%</b></label>
+  <label><input type="checkbox" id="demo"> Simulated returns</label>
+</div>
+<main>
+  <section class="card" id="mapcard">
+    <svg id="map" role="img" aria-label="County map"></svg>
+    <div class="legend" id="legend"></div>
+  </section>
+  <section>
+    <div class="card outlook" id="outlook"></div>
+    <div class="card detail" id="detail"></div>
+  </section>
+</main>
+<section class="card" id="tablecard">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
+    <h2 style="font-size:14px;margin:0">All counties</h2>
+    <input class="search" id="search" placeholder="Find county…">
+  </div>
+  <div class="scroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+</section>
+<footer id="method"></footer>
+<div class="tip" id="tip"></div>
+<script src="vendor/d3.min.js"></script>
+<script src="engine.js"></script>
+<script src="civic.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

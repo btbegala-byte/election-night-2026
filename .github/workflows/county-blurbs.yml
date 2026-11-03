@@ -1,0 +1,67 @@
+name: County Targets – Claude blurbs
+
+# Every ~8 minutes on election night: pull county results from civicAPI, compute each county's
+# verdict vs. win pace (county/engine.js), have Claude Code write the county notes and outlooks,
+# and commit data/model/blurbs.json. Uses the Max-plan token in the CLAUDE_CODE_OAUTH_TOKEN secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      selftest:
+        description: 'Only check that the Claude token works, then stop'
+        type: boolean
+        default: false
+      hours:
+        description: 'How long to keep looping (max 5.7)'
+        default: '5.6'
+  schedule:
+    - cron: '40 23 3 11 *'   # 6:40 pm ET Nov 3
+    - cron: '15 5 4 11 *'    # 12:15 am ET Nov 4 (second shift; waits for the first to finish)
+
+concurrency:
+  group: county-blurbs
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  blurbs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Check the Claude token
+        run: |
+          out=$(echo "Reply with exactly the word OK" | claude -p --model sonnet 2>&1 || true)
+          echo "Claude replied: $out"
+          echo "$out" | grep -q "OK" || { echo "::error::Claude token check failed. County pages will fall back to template sentences."; exit 1; }
+      - name: Loop
+        if: ${{ !inputs.selftest }}
+        run: |
+          git config user.name "county-targets-bot"
+          git config user.email "county-targets-bot@users.noreply.github.com"
+          HOURS="${{ inputs.hours || '5.6' }}"
+          end=$(( $(date +%s) + $(awk "BEGIN{print int($HOURS*3600)}") ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            git pull --rebase --quiet origin main || git rebase --abort || true
+            node scripts/county_blurbs.mjs || echo "::warning::blurb run failed"
+            if [ -f data/model/blurbs.json ]; then
+              git add data/model/blurbs.json
+              if ! git diff --cached --quiet; then
+                git commit -q -m "County blurbs $(date -u +%H:%MZ)"
+                for i in 1 2 3 4 5; do
+                  git pull --rebase --quiet origin main && git push --quiet origin HEAD:main && break
+                  sleep $((i*4))
+                done
+              fi
+            fi
+            sleep 420
+          done
