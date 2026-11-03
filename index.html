@@ -99,6 +99,10 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks reflect civicAPI’s race calls; confirm against AP or network calls before acting on them. Official state results are linked in each state header.
 </footer>
 
+<script src="county/vendor/d3.min.js"></script>
+<script src="county/engine.js"></script>
+<script src="county/civic.js"></script>
+<script src="county/widget.js"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -113,6 +117,7 @@ const STATE_INFO = {
   IA: { name: 'Iowa',           closes: 'Polls close 9:00 pm ET',                     official: 'https://electionresults.iowa.gov/IA/127077/web.345435/#/summary' },
 };
 const STATE_ORDER = ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'];
+if (window.CTWidget) CTWidget.init({ base: 'data/', getRaw: key => { const r = RACES.find(x => CTCivic.raceKeyFor(x) === key); return r ? DATA[r.id] || null : null; } });
 
 let RACES = [];          // from races.json
 const DATA = {};         // id -> latest race detail
@@ -249,20 +254,31 @@ function render() {
   const anyTest = RACES.some(r => DATA[r.id] && DATA[r.id].test_data);
   document.getElementById('banner').innerHTML = anyTest
     ? '<div class="banner">Some races are flagged as test data by civicAPI. Numbers before polls close may not be real votes.</div>' : '';
-  document.getElementById('states').innerHTML = states.map(st => {
+  // State sections are built once so each county map keeps its state; only the race cards re-render.
+  const host = document.getElementById('states');
+  for (const st of STATE_ORDER) {
+    let sec = document.getElementById('st-' + st);
+    if (!sec) {
+      sec = document.createElement('section');
+      sec.className = 'state'; sec.id = 'st-' + st;
+      sec.innerHTML = '<div class="state-head-slot"></div><div class="ctw-slot"></div><div class="state-body"></div>';
+      host.appendChild(sec);
+      if (window.CTWidget) CTWidget.mount(sec.querySelector('.ctw-slot'), st).catch(e => console.error('county map', st, e));
+    }
+    sec.style.display = states.includes(st) ? '' : 'none';
     const info = STATE_INFO[st];
     const races = RACES.filter(r => r.state === st);
     const by = k => races.filter(r => classify(r) === k);
     const headline = by('headline'), target = by('target'), down = by('downballot'), jud = by('judicial'), meas = by('measure');
     const block = (title, list) => list.length ? `<h3>${title}</h3><div class="grid">${list.map(card).join('')}</div>` : '';
     const more = [block('Other statewide offices', down), block('Courts', jud), block('Ballot measures', meas)].join('');
-    return `<section class="state" id="st-${st}">
-      <div class="state-head"><h2>${info.name}</h2><span class="meta">${info.closes}</span><a href="${info.official}" target="_blank" rel="noopener">Official results ↗</a></div>
+    sec.querySelector('.state-head-slot').innerHTML = `<div class="state-head"><h2>${info.name}</h2><span class="meta">${info.closes}</span><a href="${info.official}" target="_blank" rel="noopener">Official results ↗</a></div>`;
+    sec.querySelector('.state-body').innerHTML = `
       ${block('Top of ticket', headline)}
       ${block('SAM target districts', target)}
-      ${more ? `<details class="more" ${filter !== 'ALL' ? 'open' : ''}><summary>Down-ballot statewide races (${down.length + jud.length + meas.length})</summary>${more}</details>` : ''}
-    </section>`;
-  }).join('');
+      ${more ? `<details class="more" ${filter !== 'ALL' ? 'open' : ''}><summary>Down-ballot statewide races (${down.length + jud.length + meas.length})</summary>${more}</details>` : ''}`;
+  }
+  if (window.CTWidget) CTWidget.refresh();
   // Preserve open state of details across re-renders
   document.querySelectorAll('details.more').forEach(el => {
     const key = el.closest('section').id;
