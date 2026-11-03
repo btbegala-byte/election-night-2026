@@ -20,7 +20,7 @@ const NC_BASE = 'https://er.ncsbe.gov/enr/20261103/data';
 const CIVIC = 'https://civicapi.org/api/v2/race/';
 const RACES = [
   { key: 'GA-SEN', label: 'Georgia Senate', state: 'GA', civic: 87087, ref: 'US Senate' },
-  { key: 'GA-GOV', label: 'Georgia Governor', state: 'GA', civic: 88, ref: 'Governor' },
+  { key: 'GA-GOV', label: 'Georgia Governor', state: 'GA', civic: 87088, ref: 'Governor' },
   { key: 'NC-SEN', label: 'North Carolina Senate', state: 'NC', civic: 87346, ref: 'US SENATE (VOTE FOR 1)' },
   { key: 'NC-05', label: 'NC-05', state: 'NC', civic: 87336, ref: 'US HOUSE OF REPRESENTATIVES DISTRICT 05 (VOTE FOR 1)' },
   { key: 'NC-11', label: 'NC-11', state: 'NC', civic: 87342, ref: 'US HOUSE OF REPRESENTATIVES DISTRICT 11 (VOTE FOR 1)' },
