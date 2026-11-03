@@ -222,6 +222,9 @@ function setStatus(kind, text) {
 function classify(r) {
   const n = r.name;
   if (r.target) return 'target';
+  if (r.group === 'stsen') return 'stsen';
+  if (r.group === 'sthouse') return 'sthouse';
+  if (/^US House/.test(n)) return 'ushouse';
   if (/US Senate/.test(n) || (/Governor/.test(n) && !/Lieutenant/.test(n))) return 'headline';
   if (/Amendment|Proposal|Retention|Question|Issue \d|Proposition|Referend/i.test(n)) return 'measure';
   if (/Court|Justice|Judge/i.test(n)) return 'judicial';
@@ -292,12 +295,18 @@ function render() {
     const races = RACES.filter(r => r.state === st);
     const by = k => races.filter(r => classify(r) === k);
     const headline = by('headline'), target = by('target'), down = by('downballot'), jud = by('judicial'), meas = by('measure');
+    const dnum = r => +((r.name.match(/(\d+)\s*$/) || [])[1] || 0);
+    const house = target.concat(by('ushouse')).sort((a, b) => dnum(a) - dnum(b));
+    const stsen = by('stsen').sort((a, b) => dnum(a) - dnum(b)), sthouse = by('sthouse').sort((a, b) => dnum(a) - dnum(b));
+    const legName = st === 'TX' ? 'Texas' : info.name;
     const block = (title, list) => list.length ? `<h3>${title}</h3><div class="grid">${list.map(card).join('')}</div>` : '';
     const more = [block('Other statewide offices', down), block('Courts', jud), block('Ballot measures', meas)].join('');
     sec.querySelector('.state-head-slot').innerHTML = `<div class="state-head"><h2>${info.name}</h2><span class="meta">${info.closes}</span><a href="${info.official}" target="_blank" rel="noopener">Official results ↗</a></div>`;
     sec.querySelector('.state-body').innerHTML = `
       ${block('Top of ticket', headline)}
-      ${block('SAM target districts', target)}
+      ${block(house.length > target.length ? 'U.S. House' : 'SAM target districts', house)}
+      ${block(legName + ' Senate', stsen)}
+      ${block(legName + ' House', sthouse)}
       ${more ? `<details class="more" ${filter !== 'ALL' ? 'open' : ''}><summary>Down-ballot statewide races (${down.length + jud.length + meas.length})</summary>${more}</details>` : ''}`;
   }
   if (window.CTWidget) CTWidget.refresh();

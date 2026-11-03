@@ -427,14 +427,16 @@
    "state": "TX",
    "name": "US House 15",
    "label": "TX-15 (US House)",
-   "target": true
+   "target": true,
+   "group": "house"
   },
   {
    "id": 87428,
    "state": "TX",
    "name": "US House 23",
    "label": "TX-23 (US House)",
-   "target": true
+   "target": true,
+   "group": "house"
   },
   {
    "id": 55855,
@@ -526,6 +528,174 @@
    "name": "Supreme Court Place 8",
    "label": "Supreme Court Place 8",
    "target": false
+  },
+  {
+   "id": 87417,
+   "state": "TX",
+   "name": "US House 9",
+   "label": "TX-09 (US House)",
+   "target": false,
+   "group": "house"
+  },
+  {
+   "id": 56011,
+   "state": "TX",
+   "name": "US House 28",
+   "label": "TX-28 (US House)",
+   "target": false,
+   "group": "house"
+  },
+  {
+   "id": 56013,
+   "state": "TX",
+   "name": "US House 34",
+   "label": "TX-34 (US House)",
+   "target": false,
+   "group": "house"
+  },
+  {
+   "id": 87435,
+   "state": "TX",
+   "name": "US House 35",
+   "label": "TX-35 (US House)",
+   "target": false,
+   "group": "house"
+  },
+  {
+   "id": 56085,
+   "state": "TX",
+   "name": "State Senate 9",
+   "label": "SD-9",
+   "target": false,
+   "group": "stsen"
+  },
+  {
+   "id": 162804,
+   "state": "TX",
+   "name": "State Senate 19",
+   "label": "SD-19",
+   "target": false,
+   "group": "stsen"
+  },
+  {
+   "id": 56087,
+   "state": "TX",
+   "name": "State Senate 21",
+   "label": "SD-21",
+   "target": false,
+   "group": "stsen"
+  },
+  {
+   "id": 162734,
+   "state": "TX",
+   "name": "State House 118",
+   "label": "HD-118",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162733,
+   "state": "TX",
+   "name": "State House 112",
+   "label": "HD-112",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 56029,
+   "state": "TX",
+   "name": "State House 121",
+   "label": "HD-121",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162730,
+   "state": "TX",
+   "name": "State House 108",
+   "label": "HD-108",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 56055,
+   "state": "TX",
+   "name": "State House 34",
+   "label": "HD-34",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162763,
+   "state": "TX",
+   "name": "State House 37",
+   "label": "HD-37",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162773,
+   "state": "TX",
+   "name": "State House 52",
+   "label": "HD-52",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162798,
+   "state": "TX",
+   "name": "State House 94",
+   "label": "HD-94",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162746,
+   "state": "TX",
+   "name": "State House 138",
+   "label": "HD-138",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162778,
+   "state": "TX",
+   "name": "State House 61",
+   "label": "HD-61",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162780,
+   "state": "TX",
+   "name": "State House 67",
+   "label": "HD-67",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162782,
+   "state": "TX",
+   "name": "State House 70",
+   "label": "HD-70",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162784,
+   "state": "TX",
+   "name": "State House 74",
+   "label": "HD-74",
+   "target": false,
+   "group": "sthouse"
+  },
+  {
+   "id": 162766,
+   "state": "TX",
+   "name": "State House 41",
+   "label": "HD-41",
+   "target": false,
+   "group": "sthouse"
   }
  ]
 }
