@@ -164,6 +164,7 @@
   <div id="resultsView">
     <div class="bop" id="balance" style="display:none"></div>
     <div class="exit snap" id="snapshot"></div>
+    <section class="nat" id="national" style="display:none"></section>
     <div id="states"></div>
   </div>
   <div id="exitView" style="display:none">
@@ -174,13 +175,14 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793731618"></script>
-<script src="county/engine.js?v=1793731618"></script>
-<script src="county/civic.js?v=1793731618"></script>
-<script src="county/mapzoom.js?v=1793731618"></script>
-<script src="county/cities.js?v=1793731618"></script>
-<script src="county/widget.js?v=1793731618"></script>
-<script src="county/chat.js?v=1793731618"></script>
+<script src="county/vendor/d3.min.js?v=1793732221"></script>
+<script src="county/engine.js?v=1793732221"></script>
+<script src="county/civic.js?v=1793732221"></script>
+<script src="county/mapzoom.js?v=1793732221"></script>
+<script src="county/cities.js?v=1793732221"></script>
+<script src="county/national.js?v=1793732221"></script>
+<script src="county/widget.js?v=1793732221"></script>
+<script src="county/chat.js?v=1793732221"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -205,9 +207,21 @@ let filter = (() => {   // deep link: ?state=GA (or #GA) opens that state's dash
   const st = (q || '').toUpperCase();
   return ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'].includes(st) ? st : 'ALL';
 })();
+let office = (() => { const o = new URL(location.href).searchParams.get('office'); return ['senate', 'gov', 'house'].includes(o) ? o : 'senate'; })();
+const NAT_API = {
+  races: () => RACES, data: id => DATA[id], call: id => (AP.calls || {})[id], party: p => partyAbbr(p), nameMatch: (a, b) => apNameMatch(a, b), esc: x => esc(x),
+  card: (r, label) => card(r, label),
+  onMode: m => { office = m; syncUrl(); },
+  onPick: r => {
+    const el = document.querySelector(`#national .card[data-rid="${r.id}"]`); if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  }
+};
 function syncUrl() {
   const u = new URL(location.href);
   if (filter === 'ALL') u.searchParams.delete('state'); else u.searchParams.set('state', filter);
+  if (filter === 'ALL' && office !== 'senate') u.searchParams.set('office', office); else u.searchParams.delete('office');
   u.hash = '';
   history.replaceState(null, '', u);
 }
@@ -297,12 +311,12 @@ function classify(r) {
   return 'downballot';
 }
 
-function card(r) {
+function card(r, labelOverride) {
   const d = DATA[r.id];
   const cls = classify(r);
-  const label = r.label || r.name.replace(new RegExp('^' + STATE_INFO[r.state].name + ' '), '');
+  const label = labelOverride || r.label || r.name.replace(new RegExp('^' + STATE_INFO[r.state].name + ' '), '');
   if (!d) {
-    return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}">
+    return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}" data-rid="${r.id}">
       <div class="card-top"><div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM Target</span>' : ''}</div></div>
       <div class="empty">${FAILS[r.id] ? 'Not loading from civicAPI right now' : 'Loading…'}</div></div>`;
   }
@@ -331,7 +345,7 @@ function card(r) {
       <div class="vb"><div style="width:${Math.min(100, p)}%;background:${col}"></div></div>
     </div>`;
   }).join('');
-  return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}">
+  return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}" data-rid="${r.id}">
     <div class="card-top">
       <div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM Target</span>' : ''}</div>
       <div class="rep-pct">${pr ? pr.toFixed(0) + '% in' : 'No votes yet'}</div>
@@ -348,6 +362,14 @@ function render() {
   const anyTest = RACES.some(r => DATA[r.id] && DATA[r.id].test_data);
   document.getElementById('banner').innerHTML = anyTest
     ? '<div class="banner">Some races are flagged as test data by civicAPI. Numbers before polls close may not be real votes.</div>' : '';
+  // All states: national map + results for the office it shows. A single state: that state's full dashboard.
+  const nat = document.getElementById('national');
+  nat.style.display = filter === 'ALL' ? '' : 'none';
+  document.getElementById('states').style.display = filter === 'ALL' ? 'none' : '';
+  if (filter === 'ALL' && window.CTNational) {
+    if (!nat.dataset.mounted) { nat.dataset.mounted = '1'; CTNational.mount(nat, NAT_API, office).catch(e => console.error('national map', e)); }
+    else CTNational.refresh();
+  }
   // State sections are built once so each county map keeps its state; only the race cards re-render.
   const host = document.getElementById('states');
   for (const st of STATE_ORDER) {
