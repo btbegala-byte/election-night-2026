@@ -222,7 +222,7 @@
   function cards() {
     const races = racesFor(S.mode);
     const title = { senate: 'U.S. Senate', gov: 'Governor', house: 'SAM target districts · U.S. House' }[S.mode];
-    S.el.querySelector('.nat-cards').innerHTML = `<h3>${title}</h3><div class="grid">${races.map(r => S.api.card(r, S.mode === 'house' ? `${r.label}` : NAME[r.state] + (/special/i.test(r.name) ? ' (special)' : ''))).join('')}</div>`;
+    S.el.querySelector('.nat-cards').innerHTML = `<h3>${title}</h3><div class="grid">${races.map(r => S.api.card(r, S.mode === 'house' ? `${r.label}` : NAME[r.state])).join('')}</div>`;
   }
 
   async function setMode(mode) {

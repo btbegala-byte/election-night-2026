@@ -217,16 +217,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793737747"></script>
-<script src="county/engine.js?v=1793737747"></script>
-<script src="county/civic.js?v=1793737747"></script>
-<script src="county/mapzoom.js?v=1793737747"></script>
-<script src="county/extras.js?v=1793737747"></script>
-<script src="county/cities.js?v=1793737747"></script>
-<script src="county/national.js?v=1793737747"></script>
-<script src="county/widget.js?v=1793737747"></script>
-<script src="county/celebrate.js?v=1793737747"></script>
-<script src="county/chat.js?v=1793737747"></script>
+<script src="county/vendor/d3.min.js?v=1793738533"></script>
+<script src="county/engine.js?v=1793738533"></script>
+<script src="county/civic.js?v=1793738533"></script>
+<script src="county/mapzoom.js?v=1793738533"></script>
+<script src="county/extras.js?v=1793738533"></script>
+<script src="county/cities.js?v=1793738533"></script>
+<script src="county/national.js?v=1793738533"></script>
+<script src="county/widget.js?v=1793738533"></script>
+<script src="county/celebrate.js?v=1793738533"></script>
+<script src="county/chat.js?v=1793738533"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -672,7 +672,7 @@ function renderClosest() {
     const cs = d.candidates.slice().sort((a, b) => (+b.votes || 0) - (+a.votes || 0));
     const tot = cs.reduce((a, c) => a + (+c.votes || 0), 0); if (!tot || cs.length < 2) continue;
     const m = ((+cs[0].votes) - (+cs[1].votes)) / tot * 100;
-    const lab = r.target || /^TX-\d+$/.test(r.label || '') ? r.label : `${STATE_INFO[r.state].name} ${(r.label || r.name).replace(/^US /, '').replace(' (special)', ' special')}`;
+    const lab = r.target || /^TX-\d+$/.test(r.label || '') ? r.label : `${STATE_INFO[r.state].name} ${(r.label || r.name).replace(/^US /, '')}`;
     rows.push({ r, m, pty: partyAbbr(cs[0].party) || last(cs[0].name), pr: +d.percent_reporting || 0, lab });
   }
   rows.sort((a, b) => a.m - b.m);
@@ -746,7 +746,7 @@ function checkCelebrations() {
     CTCelebrate.enqueue({
       kick: sw ? 'Race called' : 'Race called · SAM target',
       race: sw ? `${r.state} ${office}` : r.label, winner: w.name,
-      sub: sw ? `${STATE_INFO[r.state].name} · ${office === 'Senate' ? (/special/i.test(r.label || r.name) ? 'U.S. Senate (special)' : 'U.S. Senate') : 'Governor'}${flip ? ' · flips the seat blue' : ''}`
+      sub: sw ? `${STATE_INFO[r.state].name} · ${office === 'Senate' ? 'U.S. Senate' : 'Governor'}${flip ? ' · flips the seat blue' : ''}`
               : `${STATE_INFO[r.state].name}${n ? `'s ${ordinal(n)} District` : ''}${flip ? ' · flips the seat blue' : ''}`,
       by: by.length ? 'Called by ' + by.join(', ') : ''
     });

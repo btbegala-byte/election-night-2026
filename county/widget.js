@@ -79,7 +79,7 @@
   function options(st) {
     const out = [];
     const g = W.model.geos[st];
-    for (const rk of g.races) out.push({ v: `${st}-${rk}`, geo: st, rk, label: `${RN[rk]}${rk === 'SEN' && st === 'OH' ? ' (special)' : ''} · statewide` });
+    for (const rk of g.races) out.push({ v: `${st}-${rk}`, geo: st, rk, label: `${RN[rk]} · statewide` });
     for (const [id, cg] of Object.entries(W.model.geos)) if (cg.type === 'cd' && cg.state === st) out.push({ v: id, geo: id, rk: 'HOUSE', label: `${id.replace('-0', '-')} · House district` });
     return out;
   }
