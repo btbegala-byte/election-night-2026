@@ -305,7 +305,26 @@
     return `${lead} ${who} ${fmtPct(row.A)} with ~${Math.round(row.f * 100)}% in, ${pace}. ${vs.join('; ')}.${caveat}`;
   }
 
+  // Official share of the count reported (civicAPI percent_reporting, 0-100) for one county row, or null.
+  function reporting(row) {
+    const l = row && row.live; if (!l || l.pr == null || isNaN(+l.pr)) return null;
+    if (l.pctBasis) return Math.max(0, Math.min(100, +l.pr));
+    return l.pt ? Math.max(0, Math.min(100, 100 * l.pr / l.pt)) : null;
+  }
+  // Race-wide % reporting: civicAPI's race-level figure when present, else counties weighted by expected vote.
+  // Also returns how many counties are fully in.
+  function raceReporting(race, res) {
+    const rows = (res && res.rows) || [];
+    let num = 0, den = 0, any = false;
+    for (const r of rows) { const q = reporting(r), w = r.w || 0; den += w; if (q != null) { any = true; num += w * q; } }
+    const est = den && any ? num / den : null;
+    let p = race && race.percent_reporting != null && race.percent_reporting !== '' && !isNaN(+race.percent_reporting) ? +race.percent_reporting : null;
+    if (p != null && p <= 1 && est != null && est > 1.5) p *= 100;          // feed sent 0-1
+    const full = rows.filter(r => r.complete || (reporting(r) || 0) >= 99.5).length;
+    return { pct: p != null ? Math.min(100, p) : est, full, n: rows.length, source: p != null ? 'civicAPI' : 'county estimate' };
+  }
+
   function signature(row) { return row.live ? `${row.live.D}|${row.live.R}|${row.live.O}` : '0'; }
 
-  return { compute, comparisons, templateBlurb, signature, liveByCounty, solveSwing, sig, fmtPct, fmtPts, fmtN, fmtMargin };
+  return { compute, comparisons, templateBlurb, signature, liveByCounty, solveSwing, sig, fmtPct, fmtPts, fmtN, fmtMargin, reporting, raceReporting };
 });

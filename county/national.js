@@ -87,7 +87,7 @@
     else {
       const top = s.cs.slice(0, 3);
       body = top.map(c => `<div class="r"><span>${esc(c.name)} (${esc(c.party || '?')})</span><span>${s.tot ? (100 * c.votes / s.tot).toFixed(1) + '%' : '–'}</span></div>`).join('')
-        + `<div class="m">${s.pr ? Math.round(s.pr) + '% in' : 'No votes counted yet'}${s.kind === 'called' ? ' · called for ' + esc(s.lead.name) : ''}</div>`;
+        + `<div class="m">${s.pr ? Math.round(s.pr) + '% reporting' : 'No votes counted yet'}${s.kind === 'called' ? ' · called for ' + esc(s.lead.name) : ''}</div>`;
     }
     t.innerHTML = `<b>${esc(title)}</b>${body}<div class="m">Click for the full result</div>`;
     t.style.display = 'block';
@@ -137,7 +137,7 @@
       for (const st of SAM) {
         const r = byState[st], p = proj(ANCHOR[st]); if (!p) continue;
         const s = r ? status(r) : null;
-        const text = () => { const s = r ? status(r) : null; return [st, r ? short(s) : 'No race', r && s.pr ? Math.round(s.pr) + '% in' : '']; };
+        const text = () => { const s = r ? status(r) : null; return [st, r ? short(s) : 'No race', r && s.pr ? Math.round(s.pr) + '% reporting' : '']; };
         labels.push({ x: p[0], y: p[1], lines: text(), big: true, text });
       }
     } else {

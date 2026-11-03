@@ -175,14 +175,14 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793732868"></script>
-<script src="county/engine.js?v=1793732868"></script>
-<script src="county/civic.js?v=1793732868"></script>
-<script src="county/mapzoom.js?v=1793732868"></script>
-<script src="county/cities.js?v=1793732868"></script>
-<script src="county/national.js?v=1793732868"></script>
-<script src="county/widget.js?v=1793732868"></script>
-<script src="county/chat.js?v=1793732868"></script>
+<script src="county/vendor/d3.min.js?v=1793733259"></script>
+<script src="county/engine.js?v=1793733259"></script>
+<script src="county/civic.js?v=1793733259"></script>
+<script src="county/mapzoom.js?v=1793733259"></script>
+<script src="county/cities.js?v=1793733259"></script>
+<script src="county/national.js?v=1793733259"></script>
+<script src="county/widget.js?v=1793733259"></script>
+<script src="county/chat.js?v=1793733259"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -348,7 +348,7 @@ function card(r, labelOverride) {
   return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}" data-rid="${r.id}">
     <div class="card-top">
       <div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM Target</span>' : ''}</div>
-      <div class="rep-pct">${pr ? pr.toFixed(0) + '% in' : 'No votes yet'}</div>
+      <div class="rep-pct">${pr ? pr.toFixed(0) + '% reporting' : 'No votes yet'}</div>
     </div>
     <div class="prog"><div style="width:${Math.min(100, pr)}%"></div></div>
     ${rows || '<div class="empty">No candidates listed</div>'}

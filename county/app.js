@@ -82,7 +82,14 @@
 
   // ---------- rendering ----------
   let svg, gMap, path, proj;
+  function repFill(q) {
+    if (q == null) return css('--wait');
+    const ink = css('--ink').trim(), m = ink.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    const a = (0.18 + 0.72 * Math.min(100, q) / 100).toFixed(3);
+    return m ? `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})` : css('--ink');
+  }
   function colorFor(r) {
+    if (S.color === 'rep') { const q = E.reporting(r); return q == null && !r.V ? css('--wait') : repFill(q != null ? q : (r.complete ? 100 : null)); }
     if (S.color === 'target') return divScale(r.t - 0.5, 0.25);
     if (!r.V) return css('--wait');
     if (S.color === 'result') return divScale(r.A - 0.5, 0.25);
@@ -134,7 +141,8 @@
   function legend() {
     const sw = (v, t) => `<span class="sw" style="background:${css(v)}"></span>${t}`;
     let h;
-    if (S.color === 'pace') h = `${sw('--r4', '')}${sw('--r2', 'Behind win pace')} ${sw('--mid', 'On pace / too early')} ${sw('--d2', 'Ahead')}${sw('--d4', '')} ${sw('--wait', 'No votes')}`;
+    if (S.color === 'rep') h = `${sw('--wait', 'Nothing in')} ${[10, 35, 65, 100].map(q => `<span class="sw" style="background:${repFill(q)}"></span>`).join('')} <span class="muted">% of the count reported, 0 → 100 (darker = more complete)</span>`;
+    else if (S.color === 'pace') h = `${sw('--r4', '')}${sw('--r2', 'Behind win pace')} ${sw('--mid', 'On pace / too early')} ${sw('--d2', 'Ahead')}${sw('--d4', '')} ${sw('--wait', 'No votes')}`;
     else if (S.color === 'result') h = `${sw('--r4', '')}${sw('--r2', 'GOP')} ${sw('--mid', 'Even')} ${sw('--d2', 'Dem')}${sw('--d4', '')} <span class="muted">two-party share</span>`;
     else h = `${sw('--r4', '')}${sw('--r2', 'GOP')} ${sw('--mid', 'Even')} ${sw('--d2', 'Dem')}${sw('--d4', '')} <span class="muted">share each county needs for a ${E.fmtPct(S.target)} result</span>`;
     if (geoModel().type === 'cd') h += ` <span class="sw" style="background:repeating-linear-gradient(45deg,${css('--ink3')} 0 1px,transparent 1px 4px)"></span>county split by district line`;
@@ -144,7 +152,7 @@
   function showTip(ev, fips) {
     const r = S.res.rows.find(x => x.fips === fips); if (!r) return;
     const t = $('tip');
-    t.innerHTML = `<b>${esc(r.name)}</b>${r.split ? ' (part)' : ''}<br>` + (r.V ? `${esc(lastName(S.res.dem))} ${E.fmtPct(r.A)} · ${Math.round(r.f * 100)}% in<br>Win pace ${E.fmtPct(r.t)} · ${E.fmtPts(r.dev)} pts` : `No votes yet · win pace ${E.fmtPct(r.t)}`);
+    t.innerHTML = `<b>${esc(r.name)}</b>${r.split ? ' (part)' : ''}<br>` + (r.V ? `${esc(lastName(S.res.dem))} ${E.fmtPct(r.A)} · ${E.reporting(r) != null ? Math.round(E.reporting(r)) + '% reporting' : '~' + Math.round(r.f * 100) + '% of expected vote'}<br>Win pace ${E.fmtPct(r.t)} · ${E.fmtPts(r.dev)} pts` : `No votes yet${E.reporting(r) != null ? ' · ' + Math.round(E.reporting(r)) + '% reporting' : ''} · win pace ${E.fmtPct(r.t)}`);
     t.style.display = 'block';
     t.style.left = Math.min(innerWidth - 270, ev.clientX + 14) + 'px'; t.style.top = (ev.clientY + 14) + 'px';
   }
@@ -169,8 +177,10 @@
       <div>${chip(r.outlook, ol)}</div></div>`;
     const ind = Object.entries(r.cur.ind || {}).sort((a, b) => b[1] - a[1])[0];
     const tot = r.cur.D + r.cur.R + r.cur.O;
+    const RR = E.raceReporting(S.curRace, r);
     html += `<div class="row">
-      <div class="kv">Expected vote in<b>${r.nReporting ? Math.round(r.counted * 100) + '%' : '0%'}</b></div>
+      <div class="kv">Reporting<b>${RR.pct != null ? Math.round(RR.pct) + '%' : '—'}</b><span class="muted" style="font-size:11.5px">${RR.full} of ${RR.n} counties fully in</span></div>
+      <div class="kv">Expected vote in (model)<b>${r.nReporting ? Math.round(r.counted * 100) + '%' : '0%'}</b></div>
       <div class="kv">${esc(lastName(r.dem))}<b>${tot ? E.fmtN(r.cur.D) + ' · ' + E.fmtPct(r.cur.D / tot) : '—'}</b></div>
       <div class="kv">${esc(lastName(r.rep))}<b>${tot ? E.fmtN(r.cur.R) + ' · ' + E.fmtPct(r.cur.R / tot) : '—'}</b></div>
       ${ind && ind[1] > 0.04 * tot ? `<div class="kv">${esc(lastName(ind[0]))}<b>${E.fmtN(ind[1])} · ${E.fmtPct(ind[1] / tot)}</b></div>` : ''}
@@ -242,7 +252,7 @@
 
   const COLS = [
     ['name', 'County', r => r.name + (r.split ? '*' : '')],
-    ['f', '% in', r => r.V ? Math.round(r.f * 100) + '%' : '—'],
+    ['rep', '% reporting', r => E.reporting(r) != null ? Math.round(E.reporting(r)) + '%' : (r.V ? '~' + Math.round(r.f * 100) + '%' : '—')],
     ['A', 'Dem', r => r.V ? E.fmtPct(r.A) : '—'],
     ['t', 'Win pace', r => E.fmtPct(r.t)],
     ['dev', 'vs. pace', r => r.V ? E.fmtPts(r.dev) : ''],
@@ -254,6 +264,7 @@
     ['verdict', 'Read', r => vchip(r)],
   ];
   function sortVal(r, k) {
+    if (k === 'rep') { const q = E.reporting(r); return q != null ? q : (r.V ? r.f * 100 : -1); }
     if (k === 'impact') return r.V ? Math.abs(r.projNet) : -1;
     if (k === 'sw24') return r.V && r.swing24 != null ? r.swing24 : -9;
     if (k === 'v24') { const c = E.comparisons(r, null, raceKey()).y2024; return r.V && c ? r.A - c.share : -9; }
@@ -310,7 +321,8 @@
   }
 
   function update() {
-    S.res = E.compute(geoModel(), currentRace(), { target: S.target, raceKey: raceKey() });
+    S.curRace = currentRace();
+    S.res = E.compute(geoModel(), S.curRace, { target: S.target, raceKey: raceKey() });
     paint(); renderOutlook(); renderDetail(); renderTable(); status();
   }
   function select(f) { S.selected = f; paint(); renderDetail(); }
