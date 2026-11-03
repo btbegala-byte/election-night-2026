@@ -79,7 +79,7 @@ async function main() {
 
   // national and the six states in parallel, so one slow search doesn't hold up the other
   const groups = [['National'], ['GA', 'NC', 'OH'], ['MI', 'TX', 'IA']];
-  const replies = await Promise.allSettled(groups.map(g => callClaude(prompt(et, g)).then(parseJSON)));
+  const replies = await Promise.allSettled(groups.map(g => callClaude(prompt(et, g)).then(t => { console.log('exitpolls:', g.join('/'), 'reply', t.length, 'chars:', t.replace(/\s+/g, ' ').slice(0, 300)); return parseJSON(t); })));
   const fresh = [], links = [];
   replies.forEach((r, i) => {
     if (r.status !== 'fulfilled') { console.log('exitpolls: group', groups[i].join('/'), 'failed:', String(r.reason && r.reason.message || r.reason).slice(0, 200)); return; }
