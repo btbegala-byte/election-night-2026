@@ -59,6 +59,7 @@ jobs:
         if: ${{ inputs.aptest }}
         run: |
           node scripts/county_blurbs.mjs > /dev/null || true
+          echo "Using web search, find the race call The Associated Press made in the November 2024 Pennsylvania U.S. Senate race. Reply with one line: winner name, then the source URL." | claude -p --model sonnet --output-format text --allowedTools WebSearch WebFetch || true
           CT_NOW=2026-11-04T03:00:00Z node scripts/ap_calls.mjs
           cat data/model/ap_calls.json | head -c 3000
       - name: Loop
