@@ -216,7 +216,17 @@
         const res = E.compute(g, race, { target: 0.5 });
         const tot = res.cur.D + res.cur.R + res.cur.O;
         const head = `## ${o.v} (${g.name} ${RN[o.rk]})`;
-        if (!res.nReporting) { out.push(`${head}: no votes counted yet.`); continue; }
+        if (!res.nReporting) {
+          // before votes: give the win-pace targets for the biggest counties plus any county named in the question
+          const named0 = res.rows.filter(r => q && q.includes(r.name.toLowerCase()));
+          const big = res.rows.slice().sort((a, b) => b.E - a.E).slice(0, 15);
+          const tl = [...new Set(named0.concat(big))].map(r => {
+            const c = E.comparisons(r, null, o.rk); const m = (2 * r.t - 1) * r.E;
+            return `${r.name}${r.split ? ' (part)' : ''} | win pace ${pct(r.t)} | full-count target margin ${m >= 0 ? 'D+' : 'R+'}${Math.round(Math.abs(m))} on ~${Math.round(r.E)} two-party votes | ${c.y2024 ? c.y2024.label + ' ' + pct(c.y2024.share) : '-'} | ${c.y2022 ? c.y2022.label + ' ' + pct(c.y2022.share) : '-'} | ${c.hwm16 ? 'best since 2016 ' + c.hwm16.label + ' ' + pct(c.hwm16.share) : '-'}`;
+          });
+          out.push(`${head}: no votes counted yet. Win-pace targets (largest counties${named0.length ? ' + counties named in the question' : ''}):\n` + tl.join('\n'));
+          continue;
+        }
         const ind = Object.entries(res.cur.ind || {}).filter(([, v]) => v > 0.02 * tot).map(([k, v]) => `${k} ${v} (${pct(v / tot)})`).join(', ');
         const B = ((W.blurbs.entries || {})[o.v]) || {};
         const lines = [head,
