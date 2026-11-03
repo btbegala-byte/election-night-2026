@@ -217,15 +217,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793734838"></script>
-<script src="county/engine.js?v=1793734838"></script>
-<script src="county/civic.js?v=1793734838"></script>
-<script src="county/mapzoom.js?v=1793734838"></script>
-<script src="county/extras.js?v=1793734838"></script>
-<script src="county/cities.js?v=1793734838"></script>
-<script src="county/national.js?v=1793734838"></script>
-<script src="county/widget.js?v=1793734838"></script>
-<script src="county/chat.js?v=1793734838"></script>
+<script src="county/vendor/d3.min.js?v=1793735221"></script>
+<script src="county/engine.js?v=1793735221"></script>
+<script src="county/civic.js?v=1793735221"></script>
+<script src="county/mapzoom.js?v=1793735221"></script>
+<script src="county/extras.js?v=1793735221"></script>
+<script src="county/cities.js?v=1793735221"></script>
+<script src="county/national.js?v=1793735221"></script>
+<script src="county/widget.js?v=1793735221"></script>
+<script src="county/celebrate.js?v=1793735221"></script>
+<script src="county/chat.js?v=1793735221"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -335,6 +336,7 @@ async function loadAll() {
   else setStatus('err', `Checked ${now}; ${bad} race(s) didn’t load, showing last numbers`);
   nextAt = Date.now() + REFRESH_MS;
   render();
+  if (typeof checkCelebrations === 'function') { celDataLoaded = true; checkCelebrations(); }
 }
 
 function setStatus(kind, text) {
@@ -546,6 +548,7 @@ function callLine(call) {
 async function loadApCalls() {
   try { AP = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { return; }
   render();
+  checkCelebrations();
 }
 
 // ---------- AI race snapshot (written by the GitHub job each time a state's numbers move; full log kept) ----------
@@ -706,6 +709,44 @@ function ymLine() {
   if (!N.men1829) return '';
   return `<div class="ymline"><b>Young men (18–29), national exit poll:</b> ${ymM(N.men1829)}${N.men1829_2024 ? ` · 2024: ${ymM(N.men1829_2024)}` : ''}${N.all ? ` · all voters ${ymM(N.all)}` : ''} · <a onclick="setView('exit')">state detail →</a></div>`;
 }
+
+// ---------- Celebrate: full-screen confetti when a SAM target race is called for a Democrat (county/celebrate.js) ----------
+// Plays once per race per browser. On page load it only celebrates calls made in the last 30 minutes, so
+// someone opening the page late doesn't get a backlog; after that, every new call celebrates. ?celebrate=demo previews it.
+const CEL_KEY = 'sam-celebrated';
+let celSeen = new Set(); try { celSeen = new Set(JSON.parse(localStorage.getItem(CEL_KEY) || '[]')); } catch (e) { /* storage off */ }
+let celPrimed = false;
+const ordinal = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : (n % 10 < 4 ? n % 10 : 0)] || 'th');
+let celDataLoaded = false;   // set after the first full results load, so old calls aren't mistaken for new ones
+function checkCelebrations() {
+  if (!window.CTCelebrate || !RACES.length || !celDataLoaded) return;
+  const now = Date.now();
+  for (const r of RACES.filter(x => x.target)) {
+    const call = (AP.calls || {})[r.id];
+    if (!call || !call.winner || call.conflict || celSeen.has(String(r.id))) continue;
+    const d = DATA[r.id]; if (!d || !d.candidates) continue;              // wait until results load so we know the party
+    const w = d.candidates.find(c => apNameMatch(c.name, call.winner)); if (!w) continue;
+    celSeen.add(String(r.id)); try { localStorage.setItem(CEL_KEY, JSON.stringify([...celSeen])); } catch (e) { /* ignore */ }
+    if (partyAbbr(w.party) !== 'D') continue;
+    const times = (call.callers || []).map(c => Date.parse(c.found_at)).filter(x => !isNaN(x));
+    const first = times.length ? Math.min(...times) : now;
+    if (!celPrimed && now - first > 30 * 60000) continue;
+    const n = +((r.name.match(/(\d+)\s*$/) || [])[1] || 0);
+    const flip = r.holder && r.holder !== 'D';
+    const by = (call.callers || []).map(c => c.caller).slice(0, 3);
+    CTCelebrate.enqueue({
+      race: r.label, winner: w.name,
+      sub: `${STATE_INFO[r.state].name}${n ? `'s ${ordinal(n)} District` : ''}${flip ? ' · flips the seat blue' : ''}`,
+      by: by.length ? 'Called by ' + by.join(', ') : ''
+    });
+  }
+  celPrimed = true;
+}
+if (new URL(location.href).searchParams.get('celebrate') === 'demo') setTimeout(() => {
+  if (!window.CTCelebrate) return;
+  CTCelebrate.enqueue({ kick: 'Preview · race called', race: 'TX-15', winner: 'Bobby Pulido', sub: "Texas's 15th District · flips the seat blue", by: 'Called by AP, NBC News' });
+  CTCelebrate.enqueue({ kick: 'Preview · race called', race: 'TX-23', winner: 'Katy Padilla Stout', sub: "Texas's 23rd District · flips the seat blue", by: 'Called by AP' });
+}, 1200);
 
 let view = 'results';
 function setView(v) {
