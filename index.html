@@ -217,16 +217,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793735221"></script>
-<script src="county/engine.js?v=1793735221"></script>
-<script src="county/civic.js?v=1793735221"></script>
-<script src="county/mapzoom.js?v=1793735221"></script>
-<script src="county/extras.js?v=1793735221"></script>
-<script src="county/cities.js?v=1793735221"></script>
-<script src="county/national.js?v=1793735221"></script>
-<script src="county/widget.js?v=1793735221"></script>
-<script src="county/celebrate.js?v=1793735221"></script>
-<script src="county/chat.js?v=1793735221"></script>
+<script src="county/vendor/d3.min.js?v=1793736725"></script>
+<script src="county/engine.js?v=1793736725"></script>
+<script src="county/civic.js?v=1793736725"></script>
+<script src="county/mapzoom.js?v=1793736725"></script>
+<script src="county/extras.js?v=1793736725"></script>
+<script src="county/cities.js?v=1793736725"></script>
+<script src="county/national.js?v=1793736725"></script>
+<script src="county/widget.js?v=1793736725"></script>
+<script src="county/celebrate.js?v=1793736725"></script>
+<script src="county/chat.js?v=1793736725"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -389,7 +389,12 @@ function card(r, labelOverride) {
   const total = cands.reduce((s, c) => s + (Number(c.votes) || 0), 0);
   const call = (AP.calls || {})[r.id];
   const isApWinner = c => !!(call && call.winner && apNameMatch(c.name, call.winner));
-  const shown = cands.filter((c, i) => i < 4 || isApWinner(c));
+  // display order: the Democrat first and the Republican second (top vote-getter of each if a party has several),
+  // then everyone else by votes; margins above still use the vote order
+  const firstOf = p => cands.find(c => partyAbbr(c.party) === p);
+  const dC = firstOf('D'), rC = firstOf('R');
+  const ordered = [dC, rC].filter(Boolean).concat(cands.filter(c => c !== dC && c !== rC));
+  const shown = ordered.filter((c, i) => i < 4 || isApWinner(c));
   const pr = Number(d.percent_reporting) || 0;
   let marginTxt = '';
   if (cands.length >= 2 && total > 0) {
