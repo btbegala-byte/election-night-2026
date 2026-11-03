@@ -116,12 +116,14 @@
     const defs = svg.append('defs');
     defs.append('pattern').attr('id', `h-${m.st}`).attr('patternUnits', 'userSpaceOnUse').attr('width', 6).attr('height', 6)
       .attr('patternTransform', 'rotate(45)').append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 6).attr('stroke', '#e8edf2').attr('stroke-opacity', .45).attr('stroke-width', 1.2);
-    svg.append('g').selectAll('path').data(fc.features.filter(f => !inGeo.has(f.id))).join('path').attr('class', 'off').attr('d', path);
-    svg.append('g').attr('class', 'cp').selectAll('path').data(fc.features.filter(f => inGeo.has(f.id)), d => d.id).join('path').attr('class', 'c').attr('d', path)
+    const zl = svg.append('g').attr('class', 'zl');
+    zl.append('g').selectAll('path').data(fc.features.filter(f => !inGeo.has(f.id))).join('path').attr('class', 'off').attr('d', path);
+    zl.append('g').attr('class', 'cp').selectAll('path').data(fc.features.filter(f => inGeo.has(f.id)), d => d.id).join('path').attr('class', 'c').attr('d', path)
       .on('mousemove', (ev, d) => tip(ev, m, d.id)).on('mouseleave', () => { document.getElementById('ctw-tip').style.display = 'none'; })
       .on('click', (ev, d) => { m.county = d.id; paint(m); detail(m); });
-    svg.append('g').attr('pointer-events', 'none').selectAll('path').data(fc.features.filter(f => (g.counties.find(c => c.fips === f.id) || {}).split))
+    zl.append('g').attr('pointer-events', 'none').selectAll('path').data(fc.features.filter(f => (g.counties.find(c => c.fips === f.id) || {}).split))
       .join('path').attr('d', path).attr('fill', `url(#h-${m.st})`);
+    if (window.CTZoom) CTZoom.attach(svg.node(), zl.node(), { container: svg.node().parentNode });
     m.el.querySelector('a.full').href = `county/?geo=${o.geo}${o.rk !== 'HOUSE' ? '&race=' + o.rk : ''}`;
     paint(m);
   }

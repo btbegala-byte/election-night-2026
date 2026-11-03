@@ -106,7 +106,7 @@
   .closes { color: var(--muted); font-size: 12px; }
   footer { max-width: 1280px; margin: 0 auto; padding: 16px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
   footer a { color: var(--blue); }
-  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .filters { margin-left: 0; } h1 { font-size: 18px; } }
+  @media (max-width: 600px) { header { position: static; } .grid { grid-template-columns: 1fr; } .filters { margin-left: 0; } h1 { font-size: 18px; } }
   .maplink { color: #cde2fb; border: 1px solid rgba(205,226,251,.45); border-radius: 6px; padding: 4px 10px; font-size: 13px; text-decoration: none; white-space: nowrap; }
   .maplink:hover { background: rgba(205,226,251,.12); }
 </style>
@@ -115,7 +115,7 @@
 <header>
   <div class="bar">
     <h1>SAM <span>Election Night</span> 2026</h1>
-    <a class="maplink" href="county/?geo=GA">County Targets map →</a>
+    <a class="maplink" href="county/?geo=GA">Detailed Map View →</a>
     <div class="status">
       <span id="statusDot" class="dot busy"></span><span id="statusText">Loading…</span>
       <span id="countdown"></span>
@@ -139,11 +139,12 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793730039"></script>
-<script src="county/engine.js?v=1793730039"></script>
-<script src="county/civic.js?v=1793730039"></script>
-<script src="county/widget.js?v=1793730039"></script>
-<script src="county/chat.js?v=1793730039"></script>
+<script src="county/vendor/d3.min.js?v=1793730423"></script>
+<script src="county/engine.js?v=1793730423"></script>
+<script src="county/civic.js?v=1793730423"></script>
+<script src="county/mapzoom.js?v=1793730423"></script>
+<script src="county/widget.js?v=1793730423"></script>
+<script src="county/chat.js?v=1793730423"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';

@@ -120,6 +120,7 @@
       .on('click', (ev, d) => select(d.id));
     gMap.append('g').attr('id', 'hatches').selectAll('path').data(feats.filter(f => (g.counties.find(c => c.fips === f.id) || {}).split))
       .join('path').attr('d', path).attr('fill', 'url(#hatch)').attr('pointer-events', 'none');
+    if (window.CTZoom) CTZoom.attach(svg.node(), gMap.node(), { container: document.getElementById('mapcard'), light: true });
   }
 
   function paint() {
