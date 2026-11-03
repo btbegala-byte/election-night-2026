@@ -136,7 +136,8 @@
         // make sure the races the question needs are loaded (the page only fetches what's on screen)
         if (window.chatEnsureData) { try { await window.chatEnsureData(text, msg => { wait.innerHTML = `<span class="dots">${esc(msg)}</span>`; }); } catch (e) { /* answer with what we have */ } }
         const ctx = (window.CTWidget ? await CTWidget.summary(text) : '') + (window.chatExtraContext ? '\n\n' + window.chatExtraContext() : '');
-        const asOf = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' ET';
+        const tz = z => new Date().toLocaleTimeString('en-US', { timeZone: z, hour: 'numeric', minute: '2-digit' });
+        const asOf = `${tz('America/New_York')} ET (${tz('America/Chicago')} CT)`;
         const empty = a => !a || !String(a).trim() || String(a).trim() === '(no answer)';
         const payload = { question: text, context: ctx, history: state.history, asOf };
         // longer questions take Claude a while (it reasons first, and may search the web): keep the wait message honest

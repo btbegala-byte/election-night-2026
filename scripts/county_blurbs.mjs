@@ -30,12 +30,12 @@ async function loadLive() {
       const f = path.join(process.env.CT_LIVE_DIR, `${id}.json`);
       return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f)) : null;
     }
-    for (let a = 0; a < 2; a++) {
+    for (let a = 0; a < 3; a++) {
       try {
         const r = await fetch(C.API + id, { signal: AbortSignal.timeout(25000) });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return await r.json();
-      } catch (e) { if (a) console.error('civicAPI fail', id, e.message); }
+      } catch (e) { if (a === 2) console.error('civicAPI fail', id, e.message); else await new Promise(res => setTimeout(res, a ? 4000 : 1500)); }
     }
     return null;
   };

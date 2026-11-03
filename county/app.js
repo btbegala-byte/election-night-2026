@@ -66,13 +66,15 @@
     const worker = async () => {
       while (queue.length) {
         const k = queue.shift();
-        try {
-          const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
-          const r = await fetch(API + S.index[k] + (API.endsWith('/') ? '' : '') + (qs.get('api') ? '.json' : ''), { cache: 'no-store', signal: ctl.signal });
-          clearTimeout(tm);
-          if (!r.ok) throw new Error(r.status);
-          S.live[k] = CTCivic.toRace(await r.json(), k); ok++;
-        } catch (e) { /* keep last good copy */ }
+        for (let a = 0; a < 3; a++) {   // civicAPI drops some requests under load; retry twice with backoff
+          try {
+            const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
+            const r = await fetch(API + S.index[k] + (API.endsWith('/') ? '' : '') + (qs.get('api') ? '.json' : ''), { cache: 'no-store', signal: ctl.signal });
+            clearTimeout(tm);
+            if (!r.ok) throw new Error(r.status);
+            S.live[k] = CTCivic.toRace(await r.json(), k); ok++; break;
+          } catch (e) { if (a < 2) await new Promise(res => setTimeout(res, (a ? 4000 : 1500) + Math.random() * 1000)); /* else keep last good copy */ }
+        }
       }
     };
     await Promise.all([1, 2, 3, 4].map(worker));
