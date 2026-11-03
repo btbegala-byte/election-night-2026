@@ -57,10 +57,18 @@ jobs:
           git config user.name "county-targets-bot"
           git config user.email "county-targets-bot@users.noreply.github.com"
           HOURS="${{ inputs.hours || '5.6' }}"
+          # raw civicAPI archive lives on its own branch so it never triggers a Pages build
+          git fetch -q origin archive && git worktree add -q -B archive /tmp/arch origin/archive || \
+            { git worktree add -q -B archive /tmp/arch HEAD && git -C /tmp/arch rm -rq . && git -C /tmp/arch commit -qm "Start raw civicAPI archive"; }
+          export CT_ARCHIVE_DIR=/tmp/archive_out
           end=$(( $(date +%s) + $(awk "BEGIN{print int($HOURS*3600)}") ))
           while [ "$(date +%s)" -lt "$end" ]; do
             git pull --rebase --quiet origin main || git rebase --abort || true
             node scripts/county_blurbs.mjs || echo "::warning::blurb run failed"
+            if ls /tmp/archive_out/*.json.gz >/dev/null 2>&1; then
+              mkdir -p /tmp/arch/raw && mv /tmp/archive_out/*.json.gz /tmp/arch/raw/
+              git -C /tmp/arch add raw && git -C /tmp/arch commit -qm "Raw civicAPI archive $(date -u +%H:%MZ)" && git -C /tmp/arch push -q origin archive || echo "::warning::archive push failed"
+            fi
             if [ -f data/model/blurbs.json ] || [ -f data/model/snapshots.json ]; then
               for f in data/model/blurbs.json data/model/snapshots.json; do [ -f "$f" ] && git add "$f"; done
               if ! git diff --cached --quiet; then

@@ -86,9 +86,10 @@
     if (S.color === 'target') return divScale(r.t - 0.5, 0.25);
     if (!r.V) return css('--wait');
     if (S.color === 'result') return divScale(r.A - 0.5, 0.25);
-    if (r.verdict === 'early') return css('--mid');
+    if (r.verdict === 'early' || r.lowImpact) return css('--mid');
+    if (r.verdict === 'good' && r.likelyEarly) return css('--d1');
     if (r.verdict === 'neutral') return css('--mid');
-    return divScale(r.dev, 0.10, true);
+    return divScale(r.devCmp != null ? r.devCmp : r.dev, 0.10, true);
   }
   function divScale(x, max, skipMid) {
     const a = Math.min(1, Math.abs(x) / max);
@@ -146,6 +147,7 @@
     t.style.left = Math.min(innerWidth - 270, ev.clientX + 14) + 'px'; t.style.top = (ev.clientY + 14) + 'px';
   }
   const lastName = n => String(n || '').split(' ').slice(-1)[0];
+  const vchip = r => r.verdict === 'good' && r.likelyEarly ? '<span class="chip neutral">▲ Ahead (early votes only)</span>' : chip(r.verdict);
   const chip = (v, label) => {
     const icon = { good: '▲', bad: '▼', neutral: '●', early: '◌', waiting: '◌' }[v] || '';
     const text = label || { good: 'Ahead of win pace', bad: 'Behind win pace', neutral: 'On pace', early: 'Too early', waiting: 'No votes yet' }[v];
@@ -176,8 +178,13 @@
     if (g.type === 'cd' && g.lines_note) html += `<div class="note">Lines: ${esc(g.lines_note)}</div>`;
     if (ind && ind[1] > 0.05 * tot) html += `<div class="note">${esc(lastName(ind[0]))} has ${E.fmtPct(ind[1] / tot)} of the vote. Win pace is measured as Dem vs. GOP only.</div>`;
     if (r.nReporting) {
-      const li = arr => arr.map(x => `<a data-f="${x.fips}">${esc(x.name)}<span>${x.paceNet >= 0 ? '+' : '−'}${E.fmtN(Math.abs(x.paceNet))}</span></a>`).join('') || '<span class="muted">—</span>';
-      html += `<div class="lists"><div><h3>Beating pace most (net votes)</h3>${li(r.helping)}</div><div><h3>Trailing pace most</h3>${li(r.hurting)}</div></div>`;
+      const li = arr => arr.map(x => `<a data-f="${x.fips}">${esc(x.name)}${x.likelyEarly ? ' (early)' : ''}<span>${x.projNet >= 0 ? '+' : '−'}${E.fmtN(Math.abs(x.projNet))}</span></a>`).join('') || '<span class="muted">—</span>';
+      html += `<div class="lists"><div><h3>Beating pace most (proj. net votes)</h3>${li(r.helping)}</div><div><h3>Trailing pace most</h3>${li(r.hurting)}</div></div>`;
+      const fm = x => (x >= 0 ? 'D+' : 'R+') + Math.abs(x * 100).toFixed(1);
+      html += `<div class="facts" style="margin-top:8px">Alt model (v2, testing): <b>${fm(r.v2.margin)}</b> · 90% range ${fm(2 * r.v2.lo - 1)} to ${fm(2 * r.v2.hi - 1)}${r.tally.goodEarly ? ` · ${r.tally.goodEarly} more counties ahead on early votes only` : ''}</div>`;
+      const sp = r.shiftPanel.filter(x => x.done > 0);
+      if (sp.length) { const pt = x => (x >= 0 ? '+' : '−') + Math.abs(x * 25).toFixed(1);
+        html += `<table style="margin-top:6px"><thead><tr><th>Fully counted, by type</th><th>Done</th><th>Shift</th><th>Needed</th><th>Gap</th></tr></thead><tbody>${sp.map(x => `<tr><td>${esc(x.label)}</td><td>${x.done}/${x.counties}</td><td>${pt(x.observedShift)}</td><td>${pt(x.neededShift)}</td><td>${pt(x.gap)}</td></tr>`).join('')}</tbody></table><div class="note">Points at a 50/50 county, vs. each county's baseline.</div>`; }
     }
     html += `<div class="note">Win pace = the share each county needs if the ${g.type === 'cd' ? 'district' : 'state'} lands at ${E.fmtPct(S.target)} Dem (two-party). Projection assumes uncounted votes follow each county's pace gap, discounted for early/mail-first counting. Turnout ${r.turnoutLearned ? 'estimated from fully counted counties: ' + Math.round(r.turnout * 100) + '% of 2022' : 'assumed at 2022 levels'}.</div>`;
     $('outlook').innerHTML = html;
@@ -200,7 +207,7 @@
     const B = ((S.blurbs.entries || {})[blurbKey()] || {}).counties || {};
     const cb = B[r.fips];
     const line = (lab, share, d, rr, cls) => `<tr class="${cls || ''}"><td>${lab}</td><td>${share != null ? E.fmtPct(share) : '—'}</td><td>${d != null ? E.fmtMargin(d, rr) : '—'}</td><td>${share != null && r.V && cls !== 'live' ? E.fmtPts(r.A - share) : ''}</td></tr>`;
-    let html = `<h2>${esc(r.name)} County${r.split ? ' <span class="muted">(part in district)</span>' : ''}</h2><div style="margin:4px 0 8px">${chip(r.verdict)}</div>`;
+    let html = `<h2>${esc(r.name)} County${r.split ? ' <span class="muted">(part in district)</span>' : ''}</h2><div style="margin:4px 0 8px">${vchip(r)}</div>`;
     if (r.V) {
       const tot = r.live.D + r.live.R + r.live.O;
       html += `<div class="facts">${esc(lastName(S.res.dem))} ${E.fmtN(r.live.D)} · ${esc(lastName(S.res.rep))} ${E.fmtN(r.live.R)}${r.live.O ? ' · other ' + E.fmtN(r.live.O) : ''} · ~${Math.round(r.f * 100)}% of expected vote${r.live.pt ? (r.live.pctBasis ? ` · ${Math.round(r.live.pr)}% reporting per civicAPI` : ` · ${r.live.pr}/${r.live.pt} precincts`) : ''}${r.earlyOnly ? ' · <b>early/mail only so far</b>' : ''}</div>`;
@@ -213,7 +220,12 @@
     html += `<table><thead><tr><th></th><th>Dem 2-party</th><th>Margin</th><th>Live vs.</th></tr></thead><tbody>`;
     if (r.V) html += line('Live 2026', r.A, r.live.D, r.live.R, 'live');
     const tE = r.V || r.E;
+    const extra = [];
+    if (Math.abs((r.tLive || r.t) - r.t) >= 0.005) extra.push(line('Win pace, turnout-adjusted', r.tLive, null, null, 'pace'));
+    if (r.likelyEarly && r.earlyDelta != null) extra.push(line('Pace for early votes (2022 skew)', r.tE, null, null, 'pace'));
+    if (r.tAlt != null && S.res.altLabel) extra.push(line(esc(S.res.altLabel), r.tAlt, null, null, 'pace'));
     html += `<tr class="pace"><td>Win pace</td><td>${E.fmtPct(r.t)}</td><td>${E.fmtMargin((2 * r.t - 1) * tE > 0 ? (2 * r.t - 1) * tE : 0, (2 * r.t - 1) * tE < 0 ? -(2 * r.t - 1) * tE : 0)}</td><td>${r.V ? E.fmtPts(r.dev) : ''}</td></tr>`;
+    html += extra.join('');
     if (cmp.y2024) html += line(cmp.y2024.label, cmp.y2024.share, cmp.y2024.d, cmp.y2024.r);
     if (cmp.y2024same && cmp.y2024same.k !== (cmp.y2024 || {}).k) html += line(cmp.y2024same.label, cmp.y2024same.share, cmp.y2024same.d, cmp.y2024same.r);
     if (cmp.y2022) html += line(cmp.y2022.label, cmp.y2022.share, cmp.y2022.d, cmp.y2022.r);
@@ -232,15 +244,16 @@
     ['A', 'Dem', r => r.V ? E.fmtPct(r.A) : '—'],
     ['t', 'Win pace', r => E.fmtPct(r.t)],
     ['dev', 'vs. pace', r => r.V ? E.fmtPts(r.dev) : ''],
-    ['impact', 'Net vs. pace', r => r.V ? (r.paceNet >= 0 ? '+' : '−') + E.fmtN(Math.abs(r.paceNet)) : ''],
-    ['v24', 'vs. 2024', r => { const c = E.comparisons(r, null, raceKey()).y2024; return r.V && c ? E.fmtPts(r.A - c.share) : ''; }],
+    ['impact', 'Proj. net vs. pace', r => r.V ? `<span style="${r.lowImpact ? 'opacity:.5' : ''}">${r.projNet >= 0 ? '+' : '−'}${E.fmtN(Math.abs(r.projNet))}</span>` : ''],
+    ['sw24', 'Swing vs. 2024', r => r.V && r.swing24 != null ? E.fmtPts(r.swing24) : ''],
     ['v22', 'vs. 2022', r => { const c = E.comparisons(r, null, raceKey()).y2022; return r.V && c ? E.fmtPts(r.A - c.share) : ''; }],
     ['hwm16', 'Best since 2016', r => r.hwm16 ? E.fmtPct(r.hwm16.share) : ''],
     ['hwm', 'Best since 2006', r => r.hwm ? E.fmtPct(r.hwm.share) : ''],
-    ['verdict', 'Read', r => chip(r.verdict)],
+    ['verdict', 'Read', r => vchip(r)],
   ];
   function sortVal(r, k) {
-    if (k === 'impact') return r.V ? Math.abs(r.paceNet) : -1;
+    if (k === 'impact') return r.V ? Math.abs(r.projNet) : -1;
+    if (k === 'sw24') return r.V && r.swing24 != null ? r.swing24 : -9;
     if (k === 'v24') { const c = E.comparisons(r, null, raceKey()).y2024; return r.V && c ? r.A - c.share : -9; }
     if (k === 'v22') { const c = E.comparisons(r, null, raceKey()).y2022; return r.V && c ? r.A - c.share : -9; }
     if (k === 'hwm') return r.hwm ? r.hwm.share : 0;
@@ -279,7 +292,7 @@
     const rk = g.type === 'cd' ? 'HOUSE' : g.races[0];
     const race = findRace(id, rk);
     if (!race || !(race.counties || []).some(c => Object.values(c.votes || {}).some(v => +v > 0))) return null;
-    const res = E.compute(g, race, { target: S.target });
+    const res = E.compute(g, race, { target: S.target, raceKey: rk });
     return { good: css('--d3'), bad: css('--r3'), neutral: css('--ink3') }[res.outlook] || null;
   }
 
@@ -295,7 +308,7 @@
   }
 
   function update() {
-    S.res = E.compute(geoModel(), currentRace(), { target: S.target });
+    S.res = E.compute(geoModel(), currentRace(), { target: S.target, raceKey: raceKey() });
     paint(); renderOutlook(); renderDetail(); renderTable(); status();
   }
   function select(f) { S.selected = f; paint(); renderDetail(); }

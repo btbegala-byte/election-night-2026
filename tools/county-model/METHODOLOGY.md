@@ -290,6 +290,8 @@ python3 tools/county-model/medsl_agg.py      # precinct files → county and dis
 python3 tools/county-model/build_oe_hwm.py   # OpenElections 2006–2020 → high-water-mark races
 python3 tools/county-model/build_model.py    # → data/model/model.json
 python3 tools/county-model/redraw_cds.py     # rebuild TX-15, TX-23, OH-7 on 2026 county lists
+python3 tools/county-model/mode_skew.py      # 2022 early-vote skew by county (GA, NC, IA)
+python3 tools/county-model/add_strata.py     # county types, skew and the OH Brown-2024 pace → model.json
 node    tools/county-model/geo.mjs           # county shapes → data/model/geo/*.json
 ```
 
@@ -298,3 +300,102 @@ The scripts expect the raw downloads in the paths noted at the top of each file.
 - `MID22`: the 2022 races used per state
 - `NEWLINE_PRES24_MARGIN_R`: the new-line calibration
 - `HWM_EXCLUDE`: races excluded from high-water marks
+
+---
+
+## 9. Election-day revisions (after the outside critique)
+
+An outside review argued that the benchmark is sound but the live projection isn't: it pulls the uncounted vote toward a 50% tie, and it spreads one statewide average over every unreported county. I agree with both points. The changes below went in on Election Day. **All new projection math runs in shadow mode:** the original projection is still the headline number, and the new one appears next to it, labeled "alt model (v2, testing)."
+
+### 9.1 Changes to the existing engine
+- **Expected-vote guard.** The vote total implied by percent reporting (`V/p`) is now held within 0.6–1.8× of the expected vote, and never below the votes already counted.
+- **"Likely early vote only" flag.** A county gets the flag when any of these holds:
+  - civicAPI shows votes at under 1% reporting;
+  - in GA, NC, OH and TX, it's within 45 minutes after polls close;
+  - vote-type data says so. civicAPI doesn't provide that data today.
+
+  Flagged counties are judged against a **pace for early votes**, `σ(b + s + early_delta)`, where the 2022 early-vote skew is known (GA, NC, IA; see 9.3). They also get a wider band. An "ahead" verdict on a flagged county shows as "Ahead (early votes only)" and stays out of the headline ahead count. Flagged counties are left out of the statewide average the original projection carries into unreported counties.
+- **Impact.** Each county gets a projected full-count net-vote figure against pace: `2 × expected vote × (projected final share − pace)`. Counties under 1,000 projected net votes are grayed on the map. The "beating / trailing pace" lists are now ranked by projected net votes.
+- **Turnout-adjusted win pace.** The win-pace shift is re-solved on every refresh using live expected-vote weights. When it differs from the fixed pace by half a point or more, the county detail shows it.
+- **Swing vs. 2024** is its own column on the full map page.
+- **Ohio Senate alternate benchmark.** A second pace built from 60% 2024 presidential and 40% Sherrod Brown's own 2024 Senate map. It appears as "Brown-2024 pace" in the county detail for the Ohio Senate race.
+
+### 9.2 County types (`add_strata.py`)
+Each state's counties are split into four types from the model itself, with no outside data:
+- **Size:** "big" means the county is among the largest counties that together hold half the expected vote; everything else is "small."
+- **Lean:** "Dem-leaning" or "GOP-leaning," depending on whether the county's baseline is above or below the state's vote-weighted median.
+
+Texas adds a fifth type, **"realigning."** It's the third of non-big counties with the biggest 2020→2024 shift toward the GOP, and it stands in for heavily Latino counties. It's an imperfect stand-in: Lubbock and Brazos land in it too. House-district parts inherit their county's type.
+
+**The observed-vs-needed panel.** For each type, the panel shows the shift fully counted counties actually delivered against their baseline. The shift is in log-odds, displayed as points at a 50/50 county, next to the shift the state needs. This answers the uniform-swing problem directly: in IA, OH and TX, small counties falling short of the needed shift is the expected shape of a Democratic win. What matters is whether the big counties beat it by enough.
+
+### 9.3 Early-vote skew (`mode_skew.py`)
+From MIT's 2022 Senate precinct rows that carry vote type, for each county:
+- `early_delta = logit(D share of early + mail) − logit(D share of all votes)`
+- `eday_delta = logit(D share of Election Day) − logit(D share of all votes)`
+
+Statewide figures:
+
+| State | early_delta | eday_delta | Early share of 2022 votes |
+|---|---|---|---|
+| GA | +0.19 | −0.34 | 64% |
+| NC | +0.25 | −0.35 | 58% |
+| IA | +0.64 | −0.29 | 30% |
+
+Counties with fewer than 300 early or Election Day votes use the state figure. TX and OH files report totals only, and MI's 2022 vote-type data is partial, so those states get the flag and wider band but no skew correction.
+
+### 9.4 The v2 projection (shadow)
+All in log-odds:
+1. **Each reporting county's observed shift** is `logit(live share) − b`. For flagged counties, the early skew is removed first. Each county is weighted by its votes counted; flagged counties count at 35%.
+2. **The statewide shift** blends the counted counties with a prior of 0, meaning "the blended 2024/2022 baseline." The prior is weighted as if 5% of the expected vote were already in at it. The critique proposed 15%, but at that weight the prior still held about 18% of the weight with two-thirds counted, so it never really stopped mattering.
+3. **Each county type's shift** is that type's counted counties, pulled toward the statewide shift as if 5% of the vote sat at the statewide figure.
+4. **Unreported counties are projected at `b + their type's shift`.** Reporting counties keep 40–90% of their own gap from their type, depending on how much is counted. A flagged county's remaining vote is projected as Election Day votes, at `+ eday_delta`. The critique's code subtracted `eday_delta`; since `eday_delta` is negative, that sign was backwards.
+5. **Turnout factor by county type** comes from that type's fully counted counties, falling back to the statewide factor.
+6. **The 90% range** combines county-level noise (0.08 log-odds), uncertainty in the statewide shift, and a county-type term that grows when a type has little counted vote. That last term is what keeps the range honest when, say, only small counties have reported.
+
+**Simulated checks:**
+
+| Scenario | True result | v1 | v2 (90% range) |
+|---|---|---|---|
+| Even −0.05 shift, ⅔ counted (TX) | 48.9% | 49.1% | 48.8% (46.7–50.9) |
+| GA early-vote dump exactly at early-vote win pace | about 50% | 52.2% (fooled by early votes) | 48.7% |
+| Uneven win (big counties +0.25, small −0.10), only small counties counted (TX) | 52.0% | 48.3% | 47.6% (42.6–52.5) |
+
+In the uneven case, **neither model can see a lopsided path before the big counties report.** v2's range is wide enough to admit it; v1's "too close" outlook says nothing. The shift-by-type panel is the tool for reading that situation.
+
+### 9.5 County-swing spread (calibration for later)
+How far counties' 2020→2024 presidential swings scattered around their state's swing, in log-odds, by size quintile from smallest to largest:
+
+| State | Spread by size quintile |
+|---|---|
+| GA | 0.115, 0.094, 0.085, 0.063, 0.071 |
+| NC | 0.094, 0.070, 0.057, 0.057, 0.042 |
+| TX | 0.132, 0.100, 0.079, 0.094, 0.093 |
+| IA | 0.047, 0.050, 0.046, 0.035, 0.035 |
+| OH | 0.047, 0.031, 0.038, 0.043, 0.035 |
+| MI | 0.042, 0.046, 0.050, 0.042, 0.065 |
+
+v2 uses a single 0.08. These figures are the starting point for fitting the band and the simulation after tonight.
+
+### 9.6 Operations
+- **Raw archive.** Every civicAPI response the AI job pulls (every race, every county) is saved each cycle as one gzipped file on the repo's `archive` branch. That branch is kept off the site build. Tonight's counting order is the dataset a real backtest needs.
+- **AI notes.** Each note now carries the time of the data it explains. Claude is told which counties are likely early votes only, along with the v2 projection and the shift panel. It may add a caveat to a verdict but never override it.
+- **Not adopted: running the AI job on a laptop.** The GitHub job is one long loop, not a 5-minute cron, so GitHub's scheduler only affects its 6:40 pm start. A sleeping laptop is the bigger risk. Instead, the start is checked at 6:42 pm and kicked off by hand if needed.
+
+### 9.7 Reading rules for tonight
+1. **Read fully counted counties by type first,** against the needed shift, not against zero.
+2. **Discount "ahead" in any metro county under about 50% counted** until its first Election Day batch lands. In Michigan the risk can run the other way: late Detroit absentee votes lean Democratic.
+3. **In IA, OH and TX, a rural county behind pace is expected on a winning path.** Watch whether the metros beat pace by enough.
+4. **Trust the outlook less when the remaining vote sits in one or two metros.**
+5. **In TX-15, TX-23 and OH-7, trust district totals over the split-county parts.**
+6. **100% reporting isn't final.** Provisional ballots, cured ballots and late mail (OH and TX accept some mail after Election Day) still come in.
+
+### 9.8 Left for after the election
+- a demographic swing model (ACS data);
+- a simulation-based outlook;
+- fitting the baseline weights against holdout elections;
+- a full vote-type model using 2020 data;
+- a replay backtest on tonight's archive;
+- precinct-level 2026 district lines;
+- three-way race support;
+- relabeling verdicts as "vs. even path."

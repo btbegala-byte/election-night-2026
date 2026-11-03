@@ -50,6 +50,14 @@ async function loadLive() {
   }));
 }
 await loadLive();
+// T1-1: archive every raw civicAPI response from this cycle (one gzipped file per cycle; the workflow pushes it to the 'archive' branch)
+if (process.env.CT_ARCHIVE_DIR && !DRY) {
+  const zlib = await import('zlib');
+  fs.mkdirSync(process.env.CT_ARCHIVE_DIR, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  fs.writeFileSync(path.join(process.env.CT_ARCHIVE_DIR, `${stamp}.json.gz`), zlib.gzipSync(JSON.stringify({ fetched_at: new Date().toISOString(), races: RAW })));
+  console.log('archived', Object.keys(RAW).length, 'races');
+}
 const pct = x => (x * 100).toFixed(1) + '%';
 const pts = x => (x >= 0 ? '+' : '-') + Math.abs(x * 100).toFixed(1);
 const last = n => String(n || '').split(' ').slice(-1)[0];
@@ -58,13 +66,14 @@ function countyFacts(r, res, rk) {
   const c = E.comparisons(r, null, rk);
   const bits = [`${r.name}${r.split ? ' (part)' : ''}: verdict=${r.verdict.toUpperCase()}`,
     `${last(res.dem)} ${pct(r.A)} two-party, ~${Math.round(r.f * 100)}% of expected vote in`,
-    `win pace ${pct(r.t)} (${pts(r.dev)} pts, ${r.paceNet >= 0 ? '+' : '-'}${Math.round(Math.abs(r.paceNet))} net votes vs pace)`];
+    `win pace ${pct(r.t)} (${pts(r.dev)} pts, ${r.paceNet >= 0 ? '+' : '-'}${Math.round(Math.abs(r.paceNet))} net votes vs pace now; projected full-count ${r.projNet >= 0 ? '+' : '-'}${Math.round(Math.abs(r.projNet))})`];
+  if (r.likelyEarly) bits.push(`LIKELY EARLY/MAIL VOTES ONLY${r.earlyDelta != null ? ` (pace for early votes, from 2022 skew: ${pct(r.tE)})` : ''}`);
+  if (r.lowImpact) bits.push('low impact (under 1,000 projected net votes vs pace)');
   if (c.y2024) bits.push(`${c.y2024.label} ${pct(c.y2024.share)}`);
   if (c.y2024same && c.y2024same.k !== (c.y2024 || {}).k) bits.push(`${c.y2024same.label} ${pct(c.y2024same.share)}`);
   if (c.y2022) bits.push(`${c.y2022.label} ${pct(c.y2022.share)}`);
   if (c.hwm16) bits.push(`best since 2016 ${c.hwm16.label} ${pct(c.hwm16.share)}`);
   if (c.hwm) bits.push(`best since 2006 ${c.hwm.label} ${pct(c.hwm.share)}`);
-  if (r.earlyOnly) bits.push('ONLY early/mail votes counted so far (these lean Dem)');
   bits.push(`expected total two-party vote ~${Math.round(r.E)}`);
   return bits.join('; ');
 }
@@ -79,16 +88,19 @@ function geoFacts(geo, res, rk) {
     `${geo.name} ${RN[rk]}: ${last(res.dem)} (D) ${res.cur.D} votes vs ${last(res.rep)} (R) ${res.cur.R}${ind && ind[1] > 0.04 * tot ? `; ${last(ind[0])} (independent/other) ${ind[1]}` : ''}`,
     `~${Math.round(res.counted * 100)}% of expected vote counted; ${res.nReporting}/${res.nCounties} counties reporting`,
     `model projection: ${res.projMargin >= 0 ? 'D' : 'R'}+${Math.abs(res.projMargin * 100).toFixed(1)} final margin (uncertainty about +/-${(res.unc * 200).toFixed(1)} pts); outlook verdict=${res.outlook.toUpperCase()}`,
-    `counties ahead/on/behind win pace: ${res.tally.good}/${res.tally.neutral}/${res.tally.bad}`,
-    `beating pace most: ${res.helping.map(r => `${r.name} +${Math.round(r.paceNet)}`).join(', ') || 'none'}`,
-    `trailing pace most: ${res.hurting.map(r => `${r.name} -${Math.round(Math.abs(r.paceNet))}`).join(', ') || 'none'}`,
+    `counties ahead/on/behind win pace: ${res.tally.good}/${res.tally.neutral}/${res.tally.bad}${res.tally.goodEarly ? ` (+${res.tally.goodEarly} ahead on likely early votes only)` : ''}`,
+    `alt model v2 (testing, projects uncounted counties by county type): ${res.v2.margin >= 0 ? 'D' : 'R'}+${Math.abs(res.v2.margin * 100).toFixed(1)}, 90% range ${pct(res.v2.lo)}-${pct(res.v2.hi)} Dem two-party`,
+    (() => { const sp = res.shiftPanel.filter(x => x.done > 0); return sp.length ? 'fully counted counties by type, observed vs needed shift (log-odds; 0.1 ~ 2.5 pts): ' + sp.map(x => `${x.label} ${x.done}/${x.counties}: ${x.observedShift.toFixed(3)} vs ${x.neededShift.toFixed(3)}`).join('; ') : ''; })(),
+    res.earlyWindow ? 'within 45 minutes of poll close: every county is treated as likely early votes only' : '',
+    `beating pace most (projected full-count net votes): ${res.helping.map(r => `${r.name}${r.likelyEarly ? ' (early only)' : ''} +${Math.round(r.projNet)}`).join(', ') || 'none'}`,
+    `trailing pace most (projected full-count net votes): ${res.hurting.map(r => `${r.name}${r.likelyEarly ? ' (early only)' : ''} -${Math.round(Math.abs(r.projNet))}`).join(', ') || 'none'}`,
     `largest uncounted vote: ${outstanding.join('; ')}`,
     geo.lines_note ? `district lines: ${geo.lines_note}` : '',
   ].filter(Boolean).join('\n');
 }
 
 const INSTRUCTIONS = `You are writing live election-night notes for a small Democratic-aligned team watching county returns.
-"Win pace" = the two-party Democratic share each county must hit for the Democrat to win the state/district. The VERDICT for each county and the OUTLOOK verdict are already decided by fixed rules. Never contradict them; your job is to explain why in plain, specific language using only the numbers given.
+"Win pace" = the two-party Democratic share each county must hit for the Democrat to win the state/district. The VERDICT for each county and the OUTLOOK verdict are already decided by fixed rules. Never override them; explain why in plain, specific language using only the numbers given. You may add a caveat to a verdict when the county is flagged LIKELY EARLY/MAIL VOTES ONLY, or when the main projection and the alt model v2 disagree by more than 1 point (e.g. "ahead, but only early votes are counted"). In IA, OH and TX, small counties falling short of the needed shift is the expected shape of a Dem win; don't read it as bad news on its own.
 
 County notes: 1-2 sentences, max 35 words. Say what the result means: e.g. which past benchmark it beats or trails (2024, 2022, best-ever), whether it's a big or small vote source, and any caveat (early/mail-only votes, small share counted, split county). Use numbers sparingly and exactly as given.
 Outlook: 3-4 sentences, max 90 words. Where the race stands, which counties are driving it, where the remaining vote is and whether it should help or hurt. No hedging filler.
@@ -124,7 +136,7 @@ for (const [id, geo] of Object.entries(model.geos)) {
     const rid = geo.type === 'cd' ? id : `${id}-${rk}`;
     const race = live[rid];
     if (!race) continue;
-    const res = E.compute(geo, race, { target: 0.5 });
+    const res = E.compute(geo, race, { target: 0.5, raceKey: rk });
     if (!res.nReporting) continue;
     const pe = (prev.entries || {})[rid] || {};
     const pc = pe.counties || {};
@@ -153,11 +165,11 @@ async function runJob(k) {
     const ent = out.entries[j.rid] = out.entries[j.rid] || { counties: {} };
     ent.counties = ent.counties || {};
     const o = (reply.outlooks || {})[j.rid];
-    if (o) ent.outlook = { text: String(o).slice(0, 700), at: new Date().toISOString(), counted: +j.res.counted.toFixed(3), verdict: j.res.outlook };
+    if (o) ent.outlook = { text: String(o).slice(0, 700), at: new Date().toISOString(), data_at: (live[j.rid] || {}).source_updated || null, counted: +j.res.counted.toFixed(3), verdict: j.res.outlook };
     const cs = (reply.counties || {})[j.rid] || {};
     for (const r of j.changed) {
       const t = cs[r.fips];
-      if (t) ent.counties[r.fips] = { text: String(t).slice(0, 400), at: new Date().toISOString(), sig: E.signature(r), verdict: r.verdict };
+      if (t) ent.counties[r.fips] = { text: String(t).slice(0, 400), at: new Date().toISOString(), data_at: (live[j.rid] || {}).source_updated || null, sig: E.signature(r), verdict: r.verdict, early: !!r.likelyEarly };
     }
   }
 }
@@ -194,7 +206,7 @@ function stateFacts(st) {
     for (const rk of geo.type === 'cd' ? ['HOUSE'] : geo.races) {
       const rid = geo.type === 'cd' ? id : `${id}-${rk}`;
       if (!live[rid]) continue;
-      const res = E.compute(geo, live[rid], { target: 0.5 });
+      const res = E.compute(geo, live[rid], { target: 0.5, raceKey: rk });
       if (res.nReporting) model.push(geoFacts(geo, res, rk));
     }
   }
