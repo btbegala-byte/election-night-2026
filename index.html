@@ -94,6 +94,29 @@
   .exit .tile span { color: var(--muted); font-size: 12px; }
   .exit ul { margin: 8px 0 0; padding-left: 18px; }
   .exit li { margin: 3px 0; }
+  /* exit poll tables from every outlet (data/model/exitpolls_data.json) */
+  .epd { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .epd .scopes { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 12px; }
+  .epd .scopes .chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .epd .scopes .chip i { font-style: normal; color: var(--muted); font-size: 11px; margin-left: 3px; }
+  .epd .scopes .chip.on i { color: #dfe8f3; }
+  .epd h3 { font-size: 15px; margin: 16px 0 6px; }
+  .epd .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+  .epd .tb { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .epd .tb .hd { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 2px; }
+  .epd .tb .hd a { color: var(--blue); text-decoration: none; white-space: nowrap; }
+  .epd .tb .q { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .epd .r { display: grid; grid-template-columns: minmax(90px, 1.1fr) 34px 2fr 46px; gap: 6px; align-items: center; font-size: 12.5px; margin: 3px 0; }
+  .epd .r .g { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .epd .r .sh { color: var(--muted); text-align: right; font-size: 11.5px; }
+  .epd .r .epb { position: relative; height: 14px; background: #26313d; border-radius: 3px; overflow: hidden; display: flex; }
+  .epd .r .epb i { display: block; height: 100%; }
+  .epd .r .epb span { position: absolute; top: 0; font-size: 10.5px; line-height: 14px; color: #fff; padding: 0 4px; }
+  .epd .r .mg { text-align: right; font-weight: 700; font-size: 12px; }
+  .epd .r.hl .g { font-weight: 700; color: var(--warn); }
+  .epd .colh { display: grid; grid-template-columns: minmax(90px, 1.1fr) 34px 2fr 46px; gap: 6px; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+  .epd .colh span:nth-child(2), .epd .colh span:nth-child(4) { text-align: right; }
+  .epd .note { color: var(--muted); font-size: 12px; }
   .views { display: flex; gap: 4px; }
   .views .chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
   /* young men 18-29 in the exit polls */
@@ -571,6 +594,12 @@ window.chatExtraContext = function () {
     for (const [st, x] of Object.entries(YM.states || {})) lines.push(`${st}: ` + [f('men 18-29', x.men1829), f('all voters', x.all), f('men 18-29 in 2024', x.men1829_2024)].filter(Boolean).join('; '));
     (YM.notes || []).forEach(n => lines.push('- ' + n));
   }
+  const EPT = (EPD && EPD.tables) || [];
+  if (EPT.length) {
+    lines.push('\n## Exit poll tables tonight (all outlets; rows: group, share of electorate %, D% / R%)');
+    EPT.forEach(t => lines.push(`${t.scope} · ${t.outlet}${t.survey ? ' (' + t.survey + ')' : ''} · ${t.question}${t.race ? ' · ' + t.race : ''}: ` +
+      t.rows.map(r => `${r.group} ${r.share != null ? r.share + '%' : ''}${r.D != null ? ' D' + r.D + '/R' + r.R : ''}`).join('; ') + ` [${t.url}]`));
+  }
   const al = (ALERTS.items || []).slice(-15);
   if (al.length) { lines.push('\n## Recent alerts (newest last)'); al.forEach(a => lines.push(`${fmtClock(a.at)} ${a.race}: ${a.text}`)); }
   const pk = BAL.pickups || {}, cb = BAL.called || {};
@@ -579,20 +608,64 @@ window.chatExtraContext = function () {
 };
 
 
+let EPD = { tables: [], links: [] }, epScope = 'National';
+const EP_TOPICS = ['Age by gender', 'Vote by gender', 'Vote by age', 'Race and ethnicity', 'Education', 'Party ID', 'Ideology',
+  'Trump approval', 'Most important issue', 'Economy', 'Direction of the country', 'Other'];
+const EP_OUTLETS = ['NBC News', 'CNN', 'ABC News', 'CBS News', 'AP', 'AP News', 'Fox News', 'WSJ'];
 async function loadExitPolls() {
   const el = document.getElementById('exitPolls');
-  try {
-    const j = await fetchWithTimeout('exitpolls.json?t=' + Date.now(), 10000);
-    window.EXIT_JSON = j;
-    const links = (j.links || []).map(l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.title)}</b><span>${esc(l.source || '')}${l.note ? ' · ' + esc(l.note) : ''}</span></a>`).join('');
-    const notes = (j.findings || []).map(f => `<li>${esc(f)}</li>`).join('');
-    el.innerHTML = `<h2>Exit polls</h2>
-      <div class="sub">${esc(j.status || '')}${j.updated ? ' · last updated ' + esc(j.updated) : ''}</div>
-      ${links ? `<div class="exit-grid">${links}</div>` : '<div class="empty">No exit poll links posted yet.</div>'}
-      ${notes ? `<ul>${notes}</ul>` : ''}`;
-  } catch (e) {
-    el.innerHTML = '<h2>Exit polls</h2><div class="empty">Exit poll links unavailable.</div>';
+  let j = { links: [], findings: [] };
+  try { j = await fetchWithTimeout('exitpolls.json?t=' + Date.now(), 10000); } catch (e) { /* fall back to the pulled links */ }
+  try { EPD = await fetchWithTimeout('data/model/exitpolls_data.json?t=' + Date.now(), 10000); } catch (e) { /* none yet */ }
+  window.EXIT_JSON = j;
+  // hand-posted links first, then every outlet page the exit poll pull found (national first)
+  const seen = new Set(), all = [];
+  (j.links || []).forEach(l => { if (!seen.has(l.url)) { seen.add(l.url); all.push(l); } });
+  (EPD.links || []).slice().sort((a, b) => (a.scope === 'National' ? 0 : 1) - (b.scope === 'National' ? 0 : 1))
+    .forEach(l => { if (!seen.has(l.url)) { seen.add(l.url); all.push({ title: l.title, source: l.outlet + (l.scope && l.scope !== 'National' ? ' · ' + (STATE_INFO[l.scope] || {}).name : ''), url: l.url }); } });
+  const links = all.map(l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.title)}</b><span>${esc(l.source || '')}${l.note ? ' · ' + esc(l.note) : ''}</span></a>`).join('');
+  const notes = (j.findings || []).map(f => `<li>${esc(f)}</li>`).join('');
+  el.innerHTML = `<h2>Exit polls</h2>
+    <div class="sub">${esc(j.status || '')}${j.updated ? ' · last updated ' + esc(j.updated) : ''}</div>
+    ${links ? `<div class="exit-grid">${links}</div>` : '<div class="empty">No exit poll links posted yet.</div>'}
+    ${notes ? `<ul>${notes}</ul>` : ''}
+    <div class="epd" id="epd"></div>`;
+  renderExitData();
+}
+function renderExitData() {
+  const el = document.getElementById('epd'); if (!el) return;
+  const T = (EPD && EPD.tables) || [];
+  if (!T.length) {
+    el.innerHTML = `<h3 style="margin-top:0">Exit poll numbers, all outlets</h3><div class="note">The tables from NBC, CNN, ABC, CBS and AP VoteCast (national and the six states) show up here as the outlets publish them. Claude checks every 15 minutes.</div>`;
+    return;
   }
+  const scopes = ['National', 'GA', 'NC', 'OH', 'MI', 'TX', 'IA'];
+  const count = sc => T.filter(t => t.scope === sc).length;
+  if (!count(epScope)) epScope = scopes.find(count) || 'National';
+  const scName = sc => sc === 'National' ? 'National' : STATE_INFO[sc].name;
+  const list = T.filter(t => t.scope === epScope);
+  const oi = o => { const i = EP_OUTLETS.indexOf(o); return i < 0 ? 99 : i; };
+  const youth = g => /18\s*[-–]\s*(24|29)|under 30|men 18/i.test(g);
+  const row = r => {
+    const lab = `<span class="g" title="${esc(r.group)}">${esc(r.group)}</span><span class="sh">${r.share != null ? r.share + '%' : ''}</span>`;
+    if (r.D != null) {
+      const oth = Math.max(0, 100 - r.D - r.R), m = r.D - r.R;
+      return `<div class="r${youth(r.group) ? ' hl' : ''}">${lab}<span class="epb"><i style="width:${r.D}%;background:var(--dem)"></i><i style="width:${oth}%;background:#3b4756"></i><i style="width:${r.R}%;background:var(--rep)"></i><span style="left:0">${r.D}</span><span style="right:0">${r.R}</span></span><span class="mg" style="color:${m >= 0 ? 'var(--dem)' : 'var(--rep)'}">${m >= 0 ? 'D' : 'R'}+${Math.abs(m).toFixed(0)}</span></div>`;
+    }
+    return `<div class="r"><span class="g" title="${esc(r.group)}">${esc(r.group)}</span><span class="sh"></span><span class="epb"><i style="width:${r.share}%;background:var(--blue)"></i></span><span class="mg">${r.share}%</span></div>`;
+  };
+  const tbl = t => {
+    const vote = t.rows.some(r => r.D != null);
+    return `<div class="tb"><div class="hd"><b>${esc(t.outlet)}${t.survey ? ` <span style="color:var(--muted);font-weight:400">· ${esc(t.survey)}</span>` : ''}</b><a href="${esc(t.url)}" target="_blank" rel="noopener">source ↗</a></div>
+      <div class="q">${esc(t.question)}${t.race ? ' · ' + esc(t.race) : ''}${t.at ? ' · ' + fmtClock(t.at) : ''}</div>
+      ${vote ? '<div class="colh"><span>Group</span><span>Share</span><span>Dem · Rep %</span><span>Margin</span></div>' : ''}
+      ${t.rows.map(row).join('')}</div>`;
+  };
+  const byTopic = EP_TOPICS.map(tp => [tp, list.filter(t => t.topic === tp).sort((a, b) => oi(a.outlet) - oi(b.outlet))]).filter(([, l]) => l.length);
+  el.innerHTML = `<h3 style="margin-top:0">Exit poll numbers, all outlets</h3>
+    <div class="note">Charted from the numbers each outlet published${EPD.updated_at ? ' · checked ' + fmtClock(EPD.updated_at) : ''}. "Share" is the group's share of the electorate. Exit polls are re-weighted to the count overnight, so early numbers move. Rows for young voters are highlighted.</div>
+    <div class="scopes">${scopes.map(sc => `<button class="chip${sc === epScope ? ' on' : ''}" ${count(sc) ? '' : 'disabled style="opacity:.45"'} onclick="epScope='${sc}';renderExitData()">${scName(sc)}<i>${count(sc) || ''}</i></button>`).join('')}</div>
+    ${byTopic.map(([tp, l]) => `<h3>${esc(tp)}</h3><div class="tgrid">${l.map(tbl).join('')}</div>`).join('')}`;
 }
 
 
