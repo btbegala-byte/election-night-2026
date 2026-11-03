@@ -9,7 +9,7 @@
 
   const S = {
     model: null, geo: {}, live: {}, blurbs: {}, lastPull: {},
-    geoId: qs.get('geo') || 'GA', race: qs.get('race') || null, color: 'pace',
+    geoId: qs.get('geo') || 'GA', race: qs.get('race') || null, color: 'result',
     target: 0.5, demo: qs.has('demo'), selected: null, sort: { k: 'impact', dir: -1 }, filter: '', res: null
   };
   const $ = id => document.getElementById(id);

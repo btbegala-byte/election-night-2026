@@ -90,11 +90,11 @@
     if (!document.getElementById('ctw-css')) { const s = document.createElement('style'); s.id = 'ctw-css'; s.textContent = CSS; document.head.appendChild(s); }
     if (!document.getElementById('ctw-tip')) { const t = document.createElement('div'); t.id = 'ctw-tip'; t.className = 'ctw-tip'; document.body.appendChild(t); }
     const opts = options(st);
-    const m = W.mounts[st] = { el, st, sel: opts[0].v, mode: 'pace', county: null, opts };
+    const m = W.mounts[st] = { el, st, sel: opts[0].v, mode: 'result', county: null, opts };
     el.innerHTML = `<div class="ctw">
       <div class="ctw-top"><span class="t">County targets</span>
         <select aria-label="Race">${opts.map(o => `<option value="${o.v}">${esc(o.label)}</option>`).join('')}</select>
-        <span class="seg"><button data-m="pace" class="on">vs. win pace</button><button data-m="result">Result</button><button data-m="target">Win pace</button></span>
+        <span class="seg"><button data-m="result" class="on">Result</button><button data-m="pace">vs. win pace</button><button data-m="target">Win pace</button></span>
         <a class="full" target="_blank" rel="noopener">Full map ↗</a></div>
       <div class="ctw-body"><div><svg></svg><div class="leg"></div></div><div class="side"><div class="ol"></div><div class="det"></div></div></div></div>`;
     el.querySelector('select').onchange = e => { m.sel = e.target.value; m.county = null; draw(m); };
