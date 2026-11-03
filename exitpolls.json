@@ -1,6 +1,12 @@
 {
-  "status": "Exit polls post after polls close in each state. Links are added here as they go live.",
+  "status": "Exit polls are live.",
   "updated": "",
-  "links": [],
+  "links": [
+    {
+      "title": "NBC News Exit Poll",
+      "source": "NBC News",
+      "url": "https://www.nbcnews.com/politics/2026-election/exit-poll-trump-midterms-voters-economy-disapproval-rcna607045"
+    }
+  ],
   "findings": []
 }

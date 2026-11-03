@@ -754,6 +754,7 @@ async function loadYoungMen() {
   try { YM = await fetchWithTimeout('data/model/youngmen.json?t=' + Date.now(), 10000); } catch (e) { YM = null; }
   renderYoungMen(); renderBalance();
 }
+const NBC_EXIT = 'https://www.nbcnews.com/politics/2026-election/exit-poll-trump-midterms-voters-economy-disapproval-rcna607045';
 const ymM = p => p ? (p.D >= p.R ? `<span style="color:var(--dem)">D+${(p.D - p.R).toFixed(0)}</span>` : `<span style="color:var(--rep)">R+${(p.R - p.D).toFixed(0)}</span>`) : '—';
 function renderYoungMen() {
   const el = document.getElementById('youngmen'); if (!el) return;
@@ -766,6 +767,7 @@ function renderYoungMen() {
     return `<tr><td>${STATE_INFO[st].name}${x.men1829 && x.men1829.race ? ` <span style="color:var(--muted);font-size:12px">${esc(x.men1829.race)}</span>` : ''}</td><td>${x.men1829 ? x.men1829.D + '–' + x.men1829.R : '—'}</td><td>${ymM(x.men1829)}</td><td>${ymM(x.all)}</td><td>${ymM(x.men1829_2024)}</td></tr>`; }).join('');
   const any = N.men1829 || Object.values((YM && YM.states) || {}).some(x => x && x.men1829);
   el.innerHTML = `<h2>Young men (18–29)</h2>
+    <div class="src" style="margin:2px 0 8px"><a href="${NBC_EXIT}" target="_blank" rel="noopener"><b>NBC News exit poll ↗</b></a></div>
     <div class="sub">${any ? `How men 18–29 voted, from published exit polls and AP VoteCast${YM.updated_at ? ' · checked ' + fmtClock(YM.updated_at) : ''}. Early exit poll numbers get re-weighted to the count overnight.` : 'Exit polls post when polls close (7:00 pm ET for Georgia). Claude checks the network exit polls and AP VoteCast every 20 minutes after that and fills this in.'}</div>
     ${N.men1829 || N.all ? `<div class="rows">${bar('Men 18–29', N.men1829)}${bar('Voters 18–29', N.voters1829)}${bar('All voters', N.all)}${bar('Men 18–29 in 2024', N.men1829_2024)}</div>` : ''}
     <table><tr><th>State</th><th>Men 18–29 (D–R %)</th><th>Margin</th><th>All voters</th><th>Men 18–29, 2024</th></tr>${stRows}</table>
@@ -775,7 +777,7 @@ function renderYoungMen() {
 function ymLine() {
   const N = (YM && YM.national) || {};
   if (!N.men1829) return '';
-  return `<div class="ymline"><b>Young men (18–29), national exit poll:</b> ${ymM(N.men1829)}${N.men1829_2024 ? ` · 2024: ${ymM(N.men1829_2024)}` : ''}${N.all ? ` · all voters ${ymM(N.all)}` : ''} · <a onclick="setView('exit')">state detail →</a></div>`;
+  return `<div class="ymline"><b>Young men (18–29), national exit poll:</b> ${ymM(N.men1829)}${N.men1829_2024 ? ` · 2024: ${ymM(N.men1829_2024)}` : ''}${N.all ? ` · all voters ${ymM(N.all)}` : ''} · <a href="${NBC_EXIT}" target="_blank" rel="noopener">NBC exit poll ↗</a> · <a onclick="setView('exit')">state detail →</a></div>`;
 }
 
 // ---------- Celebrate: full-screen confetti when a SAM target race is called for a Democrat (county/celebrate.js) ----------
