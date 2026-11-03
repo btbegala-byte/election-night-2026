@@ -220,16 +220,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793739722"></script>
-<script src="county/engine.js?v=1793739722"></script>
-<script src="county/civic.js?v=1793739722"></script>
-<script src="county/mapzoom.js?v=1793739722"></script>
-<script src="county/extras.js?v=1793739722"></script>
-<script src="county/cities.js?v=1793739722"></script>
-<script src="county/national.js?v=1793739722"></script>
-<script src="county/widget.js?v=1793739722"></script>
-<script src="county/celebrate.js?v=1793739722"></script>
-<script src="county/chat.js?v=1793739722"></script>
+<script src="county/vendor/d3.min.js?v=1793740758"></script>
+<script src="county/engine.js?v=1793740758"></script>
+<script src="county/civic.js?v=1793740758"></script>
+<script src="county/mapzoom.js?v=1793740758"></script>
+<script src="county/extras.js?v=1793740758"></script>
+<script src="county/cities.js?v=1793740758"></script>
+<script src="county/national.js?v=1793740758"></script>
+<script src="county/widget.js?v=1793740758"></script>
+<script src="county/celebrate.js?v=1793740758"></script>
+<script src="county/chat.js?v=1793740758"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -314,24 +314,43 @@ async function fetchWithTimeout(url, ms = 20000) {
   } finally { clearTimeout(t); }
 }
 
+// ---------- Fetching: races on screen first, drawn as they arrive; other races only when their tab is opened ----------
+const FETCHED = {};               // id -> time of last successful fetch
+const inflight = {};
+let active = 0; const waiters = [];
+async function slot(front) { if (active < CONCURRENCY) { active++; return; } await new Promise(r => front ? waiters.unshift(r) : waiters.push(r)); active++; }
+function release() { active--; const w = waiters.shift(); if (w) w(); }
+let renderT = null;
+function scheduleRender() { if (renderT) return; renderT = setTimeout(() => { renderT = null; render(); }, 450); }
+function fetchRace(id, front) {
+  if (inflight[id]) return inflight[id];
+  inflight[id] = (async () => {
+    await slot(front);
+    try { DATA[id] = await fetchWithTimeout(API + id); FAILS[id] = 0; FETCHED[id] = Date.now(); return true; }
+    catch (e) { FAILS[id] = (FAILS[id] || 0) + 1; return false; }
+    finally { release(); delete inflight[id]; scheduleRender(); }
+  })();
+  return inflight[id];
+}
+// races the current view shows, most important first
+function viewIds() {
+  const rank = r => (r.target || r.holder) ? 0 : r.group ? 1 : 2;
+  const list = filter === 'ALL' ? RACES.filter(r => r.target || r.holder) : RACES.filter(r => r.state === filter);
+  return list.slice().sort((a, b) => rank(a) - rank(b)).map(r => r.id);
+}
+// on tab switch: fetch anything in the new view that has never loaded or is older than a refresh cycle
+function ensureView() {
+  const now = Date.now();
+  viewIds().filter(id => !FETCHED[id] || now - FETCHED[id] > REFRESH_MS).forEach(id => fetchRace(id, true));
+}
+
 async function loadAll() {
   if (loading) return;
   loading = true;
   setStatus('busy', 'Fetching latest results…');
-  const queue = RACES.map(r => r.id);
-  let ok = 0, bad = 0;
-  async function worker() {
-    while (queue.length) {
-      const id = queue.shift();
-      try {
-        DATA[id] = await fetchWithTimeout(API + id);
-        FAILS[id] = 0; ok++;
-      } catch (e) {
-        FAILS[id] = (FAILS[id] || 0) + 1; bad++;
-      }
-    }
-  }
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  const ids = viewIds();
+  const res = await Promise.all(ids.map(id => fetchRace(id)));
+  const ok = res.filter(Boolean).length, bad = res.length - ok;
   loading = false;
   const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   if (bad === 0) setStatus('ok', `Checked ${now}`);
@@ -453,7 +472,11 @@ function render() {
       sec.className = 'state'; sec.id = 'st-' + st;
       sec.innerHTML = '<div class="state-head-slot"></div><div class="ctw-slot"></div><div class="state-body"></div>';
       host.appendChild(sec);
-      if (window.CTWidget) CTWidget.mount(sec.querySelector('.ctw-slot'), st).catch(e => console.error('county map', st, e));
+    }
+    // county map: mounted the first time its state tab is shown (All states doesn't show them)
+    if (states.includes(st) && filter !== 'ALL' && window.CTWidget && !sec.dataset.mapMounted) {
+      sec.dataset.mapMounted = '1';
+      CTWidget.mount(sec.querySelector('.ctw-slot'), st).catch(e => console.error('county map', st, e));
     }
     sec.style.display = states.includes(st) ? '' : 'none';
     const info = STATE_INFO[st];
@@ -683,7 +706,7 @@ function renderClosest() {
     ? `<div class="cl">${rows.slice(0, 8).map(x => `<a data-st="${x.r.state}" data-rid="${x.r.id}">${esc(x.lab)}</a><span class="m" style="color:${x.pty === 'D' ? 'var(--dem)' : x.pty === 'R' ? 'var(--rep)' : 'var(--text)'}">${esc(x.pty)}+${x.m.toFixed(1)}</span><span class="p">${Math.round(x.pr)}% in</span>`).join('')}</div>`
     : '<div class="empty">Shows the tightest uncalled Senate, governor and House races once votes are in.</div>');
   el.querySelectorAll('a[data-st]').forEach(a => a.onclick = () => {
-    filter = a.dataset.st; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); renderAlerts(); renderClosest();
+    filter = a.dataset.st; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); renderAlerts(); renderClosest(); ensureView();
     setTimeout(() => { const c = document.querySelector(`#st-${a.dataset.st} .card[data-rid="${a.dataset.rid}"]`); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'center' }); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } }, 150);
   });
 }
@@ -791,7 +814,7 @@ function buildFilters() {
   const f = document.getElementById('filters');
   const opts = ['ALL', ...STATE_ORDER];
   f.innerHTML = opts.map(o => `<button class="chip ${o === filter ? 'on' : ''}" data-f="${o}">${o === 'ALL' ? 'All states' : o}</button>`).join('');
-  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); renderAlerts(); renderClosest(); window.scrollTo({ top: 0 }); });
+  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); renderAlerts(); renderClosest(); ensureView(); window.scrollTo({ top: 0 }); });
 }
 
 function tick() {

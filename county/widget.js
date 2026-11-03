@@ -239,9 +239,17 @@
     t.style.display = 'block'; t.style.left = Math.min(innerWidth - 260, ev.clientX + 14) + 'px'; t.style.top = (ev.clientY + 14) + 'px';
   }
 
+  // Repaint the maps on screen; AI notes are re-fetched at most once a minute (render runs often while results stream in)
   async function refresh() {
-    try { const r = await fetch(W.opts.base + 'model/blurbs.json?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) W.blurbs = await r.json(); } catch (e) { /* none yet */ }
-    for (const m of Object.values(W.mounts)) if (m.res !== undefined || m.opts) try { paint(m); } catch (e) { console.error(e); }
+    if (!W.blurbsAt || Date.now() - W.blurbsAt > 60000) {
+      W.blurbsAt = Date.now();
+      try { const r = await fetch(W.opts.base + 'model/blurbs.json?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) W.blurbs = await r.json(); } catch (e) { /* none yet */ }
+    }
+    for (const m of Object.values(W.mounts)) {
+      if (!(m.res !== undefined || m.opts)) continue;
+      if (m.el && m.el.offsetParent === null) { m.stale = true; continue; }     // hidden tab: repaint when it's shown
+      try { m.stale = false; paint(m); } catch (e) { console.error(e); }
+    }
   }
 
 
