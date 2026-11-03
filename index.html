@@ -220,16 +220,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793742850"></script>
-<script src="county/engine.js?v=1793742850"></script>
-<script src="county/civic.js?v=1793742850"></script>
-<script src="county/mapzoom.js?v=1793742850"></script>
-<script src="county/extras.js?v=1793742850"></script>
-<script src="county/cities.js?v=1793742850"></script>
-<script src="county/national.js?v=1793742850"></script>
-<script src="county/widget.js?v=1793742850"></script>
-<script src="county/celebrate.js?v=1793742850"></script>
-<script src="county/chat.js?v=1793742850"></script>
+<script src="county/vendor/d3.min.js?v=1793743146"></script>
+<script src="county/engine.js?v=1793743146"></script>
+<script src="county/civic.js?v=1793743146"></script>
+<script src="county/mapzoom.js?v=1793743146"></script>
+<script src="county/extras.js?v=1793743146"></script>
+<script src="county/cities.js?v=1793743146"></script>
+<script src="county/national.js?v=1793743146"></script>
+<script src="county/widget.js?v=1793743146"></script>
+<script src="county/celebrate.js?v=1793743146"></script>
+<script src="county/chat.js?v=1793743146"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -529,15 +529,31 @@ function render() {
 const openDetails = new Set();
 
 // Extra context for the Ask Claude drawer: top-line totals for every race on the page + exit poll notes
+let BRIEFS = null;   // pre-election background for the 24 Senate, governor and House races (data/model/race_briefs.json)
+fetchWithTimeout('data/model/race_briefs.json?t=' + Date.now(), 10000).then(j => { BRIEFS = j; }).catch(() => {});
+const briefKey = r => r.target || /^(TX|IA|MI|NC|OH)-\d+$/.test(r.label || '') ? r.label : `${r.state}-${/Senate/.test(r.label || r.name) ? 'SEN' : 'GOV'}`;
 window.chatExtraContext = function () {
-  const lines = ['## All races on the dashboard (statewide totals, unofficial civicAPI)'];
+  const lines = ['## How to use this snapshot',
+    'Live vote counts, margins, % reporting and race calls come ONLY from the live sections below. For background questions (who is running, who holds the seat, what forecasters and polls expected before tonight, who a candidate is), use the "Pre-election background" section and widely known public facts about the candidates; say when something is background rather than tonight\'s results. Election-night analysis of the returns is the main job.',
+    '', '## All races on the dashboard (statewide totals, unofficial civicAPI)'];
   for (const r of RACES) {
     const d = DATA[r.id];
-    if (!d || !d.candidates) { lines.push(`${r.state} ${r.label || r.name}: not loaded`); continue; }
+    const held = r.holder ? ` · seat held by ${r.holder === 'D' ? 'Democrats' : 'Republicans'}` : '';
+    if (!d || !d.candidates) { lines.push(`${r.state} ${r.label || r.name}${held}: not loaded`); continue; }
     const tot = d.candidates.reduce((s, c) => s + (+c.votes || 0), 0);
-    const cs = d.candidates.filter(c => +c.votes > 0 || d.candidates.length <= 3).slice(0, 4)
-      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${(AP.calls || {})[r.id] && apNameMatch(c.name, AP.calls[r.id].winner) ? ' (CALLED WINNER, by ' + ((AP.calls[r.id].callers || []).map(x => x.caller).join(', ') || 'AP') + ')' : ''}`).join('; ');
-    lines.push(`${r.state} ${r.label || r.name} [${d.percent_reporting ?? '?'}% reporting]: ${tot ? cs : 'no votes yet'}`);
+    const byV = d.candidates.slice().sort((a, b) => (+b.votes || 0) - (+a.votes || 0));
+    const dC = byV.find(c => partyAbbr(c.party) === 'D'), rC = byV.find(c => partyAbbr(c.party) === 'R');
+    const others = byV.filter(c => c !== dC && c !== rC && !/write-?in/i.test(c.name) && (+c.votes > 0 || !/^w/i.test(String(c.party || ''))));
+    const cs = [dC, rC].filter(Boolean).concat(others).slice(0, 5)
+      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}${c.incumbent ? ', incumbent' : ''})${tot ? ` ${c.votes} ${(100 * c.votes / tot).toFixed(1)}%` : ''}${(AP.calls || {})[r.id] && apNameMatch(c.name, AP.calls[r.id].winner) ? ' (CALLED WINNER, by ' + ((AP.calls[r.id].callers || []).map(x => x.caller).join(', ') || 'AP') + ')' : ''}`).join('; ');
+    lines.push(`${r.state} ${r.label || r.name}${held} [${d.percent_reporting ?? '?'}% reporting]: ${cs}${tot ? '' : ' (no votes counted yet)'}`);
+  }
+  if (BRIEFS && BRIEFS.races) {
+    lines.push(`\n## Pre-election background (forecasts and polls as of ${BRIEFS.as_of || 'Nov 3'}; NOT results)`);
+    for (const r of RACES.filter(x => x.target || x.holder)) {
+      const b = BRIEFS.races[briefKey(r)]; if (!b) continue;
+      lines.push(`${briefKey(r)}: ${[b.forecast && 'Forecast: ' + b.forecast, b.polling && 'Polling: ' + b.polling, b.context].filter(Boolean).join(' | ')}${(b.sources || []).length ? ' [sources: ' + b.sources.slice(0, 3).map(x => x.name).join(', ') + ']' : ''}`);
+    }
   }
   const latest = {}; (SNAPS.entries || []).forEach(e => { latest[e.scope] = e; });
   if (Object.keys(latest).length) { lines.push('\n## Latest AI race snapshots'); Object.values(latest).forEach(e => lines.push(`${e.scope} (${fmtClock(e.at)}): ${e.text}`)); }
