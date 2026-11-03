@@ -348,6 +348,8 @@
   async function init() {
     S.model = await getJSON(`${BASE}model/model.json`);
     if (!S.model.geos[S.geoId]) S.geoId = 'GA';
+    // Simulated returns are for practice only: the checkbox appears only with ?demo in the address
+    if (S.demo) $('demoWrap').style.display = '';
     $('demo').checked = S.demo;
     $('demo').onchange = e => { S.demo = e.target.checked; renderTabs(); update(); };
     $('target').oninput = e => { S.target = +e.target.value / 100; $('targetV').textContent = E.fmtPct(S.target); update(); };
