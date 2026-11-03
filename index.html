@@ -103,6 +103,7 @@
 <script src="county/engine.js"></script>
 <script src="county/civic.js"></script>
 <script src="county/widget.js"></script>
+<script src="county/chat.js"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -288,10 +289,32 @@ function render() {
 }
 const openDetails = new Set();
 
+// Extra context for the Ask Claude drawer: top-line totals for every race on the page + exit poll notes
+window.chatExtraContext = function () {
+  const lines = ['## All races on the dashboard (statewide totals, unofficial civicAPI)'];
+  for (const r of RACES) {
+    const d = DATA[r.id];
+    if (!d || !d.candidates) { lines.push(`${r.state} ${r.label || r.name}: not loaded`); continue; }
+    const tot = d.candidates.reduce((s, c) => s + (+c.votes || 0), 0);
+    const cs = d.candidates.filter(c => +c.votes > 0 || d.candidates.length <= 3).slice(0, 4)
+      .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${c.winner ? ' CALLED' : ''}`).join('; ');
+    lines.push(`${r.state} ${r.label || r.name} [${d.percent_reporting ?? '?'}% reporting]: ${tot ? cs : 'no votes yet'}`);
+  }
+  const j = window.EXIT_JSON;
+  if (j) {
+    lines.push('\n## Exit polls (links/notes the team posted)');
+    (j.findings || []).forEach(f => lines.push('- ' + f));
+    (j.links || []).forEach(l => lines.push(`- ${l.title} (${l.source || ''})${l.note ? ': ' + l.note : ''}`));
+  }
+  return lines.join('\n');
+};
+
+
 async function loadExitPolls() {
   const el = document.getElementById('exitPolls');
   try {
     const j = await fetchWithTimeout('exitpolls.json?t=' + Date.now(), 10000);
+    window.EXIT_JSON = j;
     const links = (j.links || []).map(l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.title)}</b><span>${esc(l.source || '')}${l.note ? ' · ' + esc(l.note) : ''}</span></a>`).join('');
     const notes = (j.findings || []).map(f => `<li>${esc(f)}</li>`).join('');
     el.innerHTML = `<h2>Exit polls</h2>

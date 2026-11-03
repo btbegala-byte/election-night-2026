@@ -199,8 +199,48 @@
     for (const m of Object.values(W.mounts)) if (m.res !== undefined || m.opts) try { paint(m); } catch (e) { console.error(e); }
   }
 
+
+  // Text snapshot of every geography for the "Ask Claude" chat
+  async function summary(question) {
+    await ensureModel();
+    const q = String(question || '').toLowerCase();
+    const pct = x => (x * 100).toFixed(1) + '%';
+    const pts = x => (x >= 0 ? '+' : '-') + Math.abs(x * 100).toFixed(1);
+    const out = [];
+    const states = ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'];
+    for (const st of states) {
+      for (const o of options(st)) {
+        const g = W.model.geos[o.geo];
+        const raw = W.opts.getRaw(o.v);
+        const race = raw ? C.toRace(raw, o.v) : null;
+        const res = E.compute(g, race, { target: 0.5 });
+        const tot = res.cur.D + res.cur.R + res.cur.O;
+        const head = `## ${o.v} (${g.name} ${RN[o.rk]})`;
+        if (!res.nReporting) { out.push(`${head}: no votes counted yet.`); continue; }
+        const ind = Object.entries(res.cur.ind || {}).filter(([, v]) => v > 0.02 * tot).map(([k, v]) => `${k} ${v} (${pct(v / tot)})`).join(', ');
+        const B = ((W.blurbs.entries || {})[o.v]) || {};
+        const lines = [head,
+          `${res.dem} (D) ${res.cur.D} (${pct(res.cur.D / tot)}) vs ${res.rep} (R) ${res.cur.R} (${pct(res.cur.R / tot)})${ind ? '; others: ' + ind : ''}`,
+          `~${Math.round(res.counted * 100)}% of expected vote counted; ${res.nReporting}/${res.nCounties} counties reporting. Model projection ${res.projMargin >= 0 ? 'D' : 'R'}+${Math.abs(res.projMargin * 100).toFixed(1)} (outlook: ${res.outlook}). Counties ahead/on/behind win pace: ${res.tally.good}/${res.tally.neutral}/${res.tally.bad}.`];
+        if (B.outlook && B.outlook.text) lines.push(`AI outlook note: ${B.outlook.text}`);
+        // county lines: biggest movers plus any county named in the question
+        const named = res.rows.filter(r => q && q.includes(r.name.toLowerCase()));
+        const movers = res.rows.filter(r => r.V > 0).sort((a, b) => Math.abs(b.paceNet) - Math.abs(a.paceNet)).slice(0, o.geo.length === 2 ? 25 : 30);
+        const left = res.rows.filter(r => !r.complete).map(r => ({ r, rem: Math.max(0, r.E - (r.V || 0)) })).sort((a, b) => b.rem - a.rem).slice(0, 8);
+        lines.push('Largest uncounted vote: ' + left.map(({ r, rem }) => `${r.name} ~${Math.round(rem)} left (pace ${pct(r.t)}${r.V ? ', running ' + pts(r.dev) : ', nothing in'})`).join('; '));
+        lines.push('County | % in | Dem 2-party | win pace | vs pace pts | net votes vs pace | 2024 | 2022 | best since 2016 | verdict');
+        for (const r of [...new Set(named.concat(movers))]) {
+          const c = E.comparisons(r, null, o.rk);
+          lines.push(`${r.name}${r.split ? ' (part)' : ''} | ${r.V ? Math.round(r.f * 100) + '%' : '0%'} | ${r.V ? pct(r.A) : '-'} | ${pct(r.t)} | ${r.V ? pts(r.dev) : '-'} | ${r.V ? Math.round(r.paceNet) : '-'} | ${c.y2024 ? c.y2024.label + ' ' + pct(c.y2024.share) : '-'} | ${c.y2022 ? c.y2022.label + ' ' + pct(c.y2022.share) : '-'} | ${c.hwm16 ? c.hwm16.label + ' ' + pct(c.hwm16.share) : '-'} | ${r.verdict}`);
+        }
+        out.push(lines.join('\n'));
+      }
+    }
+    return out.join('\n\n');
+  }
+
   window.CTWidget = {
     init(opts) { W.opts = Object.assign({ base: 'data/' }, opts); },
-    mount, refresh, mounted: st => !!W.mounts[st]
+    mount, refresh, summary, mounted: st => !!W.mounts[st]
   };
 })();
