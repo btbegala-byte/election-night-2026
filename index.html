@@ -628,9 +628,8 @@ async function loadExitPolls() {
   el.innerHTML = `<h2>Exit polls</h2>
     <div class="sub">${esc(j.status || '')}${j.updated ? ' · last updated ' + esc(j.updated) : ''}</div>
     ${links ? `<div class="exit-grid">${links}</div>` : '<div class="empty">No exit poll links posted yet.</div>'}
-    ${notes ? `<ul>${notes}</ul>` : ''}
-    <div class="epd" id="epd"></div>`;
-  renderExitData();
+    ${notes ? `<ul>${notes}</ul>` : ''}`;
+  // tables from the pull are kept for the chat only; the page links out to each outlet's exit poll instead
 }
 function renderExitData() {
   const el = document.getElementById('epd'); if (!el) return;
