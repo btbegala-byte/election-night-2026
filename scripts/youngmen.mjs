@@ -10,7 +10,7 @@ const ROOT = process.env.CT_ROOT || CODE;
 const MODEL = process.env.CLAUDE_MODEL || 'sonnet';
 const FILE = path.join(ROOT, 'data/model/youngmen.json');
 const now = process.env.CT_NOW ? Date.parse(process.env.CT_NOW) : Date.now();
-const FIRST = Date.parse('2026-11-04T00:00:00Z');      // 7 pm ET: first exit poll numbers post when GA polls close
+const FIRST = Date.parse('2026-11-03T21:30:00Z');      // 4:30 pm ET: networks start publishing exit poll numbers in the late afternoon
 const STATES = ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'];
 
 function callClaude(prompt, timeoutMs = 420000) {
@@ -42,7 +42,7 @@ function block(x) {
 
 async function main() {
   const prev = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE)) : { national: null, states: {}, notes: [], log: [] };
-  if (now < FIRST && !process.argv.includes('--force')) { console.log('youngmen: before 7 pm ET'); return; }
+  if (now < FIRST && !process.argv.includes('--force')) { console.log('youngmen: too early'); return; }
   const last = prev.checked_at ? Date.parse(prev.checked_at) : 0;
   if (now - last < 20 * 60000 && !process.argv.includes('--force')) { console.log('youngmen: not due'); return; }
   const et = new Date(now).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
