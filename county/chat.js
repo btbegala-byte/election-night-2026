@@ -139,7 +139,10 @@
         const asOf = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' ET';
         const empty = a => !a || !String(a).trim() || String(a).trim() === '(no answer)';
         const payload = { question: text, context: ctx, history: state.history, asOf };
-        let j = await call(payload);
+        // longer questions take Claude a while (it reasons first, and may search the web): keep the wait message honest
+        const t1 = setTimeout(() => { wait.innerHTML = '<span class="dots">Thinking it through</span>'; }, 7000);
+        const t2 = setTimeout(() => { wait.innerHTML = '<span class="dots">Checking outside sources too</span>'; }, 20000);
+        let j; try { j = await call(payload); } finally { clearTimeout(t1); clearTimeout(t2); }
         // Claude occasionally returns an empty reply; ask once more before giving up
         if (empty(j.answer)) { wait.innerHTML = '<span class="dots">Still working on it</span>'; j = await call(payload); }
         if (empty(j.answer)) {
@@ -148,7 +151,7 @@
           wait.querySelector('.retry').onclick = () => { wait.remove(); ta.value = text; submit(); };
           return;
         }
-        wait.innerHTML = md(j.answer) + `<small>Claude · numbers as of ${asOf}</small>`;
+        wait.innerHTML = md(j.answer) + `<small>Claude · numbers as of ${asOf}${j.searches ? ` · searched the web (${j.searches})` : ''}</small>`;
         state.history.push({ role: 'user', text }, { role: 'assistant', text: j.answer });
         state.history = state.history.slice(-8);
       } catch (e) {
