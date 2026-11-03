@@ -17,6 +17,8 @@
   .askmsg.a{background:#1d2630;border:1px solid #2a3542;padding:9px 12px;border-radius:12px 12px 12px 2px}
   .askmsg.a small,.askmsg.e small{display:block;color:#8a99a8;font-size:11px;margin-top:4px}
   .askmsg.e{color:#f1b0b0;font-size:14px}
+  .askmsg.a{white-space:normal}.askmsg.a p{margin:0 0 7px}.askmsg.a p:last-of-type{margin-bottom:2px}.askmsg.a ul{margin:0 0 7px;padding-left:20px}.askmsg.a li{margin:2px 0}
+  .askmsg .retry{color:#8fb6f0;cursor:pointer;text-decoration:underline}
   .askhint{color:#8a99a8;font-size:13.5px;line-height:1.45}
   .askhint a{color:#86b6ef;cursor:pointer;display:block;margin-top:6px;padding:9px 11px;border:1px solid #2a3542;border-radius:10px;text-decoration:none;background:#171e26}
   .askform{display:flex;gap:8px;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));border-top:1px solid #2a3542;background:#171e26}
@@ -43,6 +45,18 @@
   const store = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
                   set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* storage off */ } } };
   const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  // light markdown for answers: **bold**, "- " bullet lines, paragraphs
+  const md = s => {
+    const lines = esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').split('\n');
+    let out = '', inList = false;
+    for (const ln of lines) {
+      const m = ln.match(/^\s*[-*•]\s+(.*)$/);
+      if (m) { if (!inList) { out += '<ul>'; inList = true; } out += `<li>${m[1]}</li>`; continue; }
+      if (inList) { out += '</ul>'; inList = false; }
+      out += ln.trim() ? `<p>${ln}</p>` : '';
+    }
+    return out + (inList ? '</ul>' : '');
+  };
   const el = html => { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; };
 
   async function init() {
@@ -123,8 +137,18 @@
         if (window.chatEnsureData) { try { await window.chatEnsureData(text, msg => { wait.innerHTML = `<span class="dots">${esc(msg)}</span>`; }); } catch (e) { /* answer with what we have */ } }
         const ctx = (window.CTWidget ? await CTWidget.summary(text) : '') + (window.chatExtraContext ? '\n\n' + window.chatExtraContext() : '');
         const asOf = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' ET';
-        const j = await call({ question: text, context: ctx, history: state.history, asOf });
-        wait.innerHTML = esc(j.answer) + `<small>Claude · numbers as of ${asOf}</small>`;
+        const empty = a => !a || !String(a).trim() || String(a).trim() === '(no answer)';
+        const payload = { question: text, context: ctx, history: state.history, asOf };
+        let j = await call(payload);
+        // Claude occasionally returns an empty reply; ask once more before giving up
+        if (empty(j.answer)) { wait.innerHTML = '<span class="dots">Still working on it</span>'; j = await call(payload); }
+        if (empty(j.answer)) {
+          wait.className = 'askmsg e';
+          wait.innerHTML = 'Claude didn\'t return an answer that time. <a class="retry">Try again</a>';
+          wait.querySelector('.retry').onclick = () => { wait.remove(); ta.value = text; submit(); };
+          return;
+        }
+        wait.innerHTML = md(j.answer) + `<small>Claude · numbers as of ${asOf}</small>`;
         state.history.push({ role: 'user', text }, { role: 'assistant', text: j.answer });
         state.history = state.history.slice(-8);
       } catch (e) {
