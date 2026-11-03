@@ -147,14 +147,20 @@ The pattern to notice: in IA, OH and TX, a win requires many counties to beat th
 - **County parts:** the baseline uses the part of each county inside the district, built from precinct data on the **2024 district lines**.
 - **Blend:** for IA, MI, TX and OH, the 2022 and 2024 elections used the same lines, so the same 60/40 blend applies, using the part's 2022 results. `w` is the part's 2022 two-party vote.
 - **North Carolina:** NC-5 and NC-11 were redrawn between 2022 and 2024. The baseline is therefore 2024 presidential only. `w` is the part's 2024 presidential two-party vote times NC's statewide ratio of 2022 Senate votes to 2024 presidential votes (about 0.66).
-- **2025 redraws:** TX-15, TX-23 and OH-7 were redrawn in 2025, but only slightly. Using 2024 lines, I computed each district's 2024 presidential share. I then shifted all its parts equally so the district matches the 2024 Trump margin on the **new** lines, per 270toWin/DRA: TX-15 R+17.8 (no change), TX-23 R+14.8 (was R+15.5), OH-7 R+11.0 (was R+10.6).
+- **2025 redraws (TX-15, TX-23, OH-7):** these districts are rebuilt on their **2026 county lists** by `redraw_cds.py`. The county lists are taken from civicAPI's 2026 general-election races.
+  - **Whole counties** use the county's own statewide baseline.
+  - **Split counties** use the county part from the 2024 lines as a proxy: Hidalgo for TX-15, Bexar and El Paso for TX-23, Cuyahoga for OH-7.
+  - **TX-15 changed a lot.** It now runs from Hidalgo up through the Coastal Bend (Aransas, Bee, Refugio, San Patricio, Goliad, DeWitt, Gonzales, Lavaca, Brooks, Jim Wells). Guadalupe, Wilson and Karnes left.
+  - **OH-7** gained Ashland County and lost its Holmes sliver.
+  - **TX-23 parts:** the March 2026 primary shows the Bexar part (about 22% of the county) and the El Paso part (about 8%) are close to their 2024 size.
+  - **Check against DRA:** on the new lines, this build gives a 2024 presidential margin of R+20.3 for TX-15, R+15.9 for TX-23 and R+12.8 for OH-7. 270toWin/DRA's new-line figures are R+17.8, R+14.8 and R+11.0. The 1–2.5 point gap most likely means the real split-county parts lean more Democratic than the 2024-lines proxies, above all the Hidalgo part of TX-15. That gap moves those parts' targets relative to the other counties. It doesn't change the district target, which is always solved to 50%.
 - **Split counties:** a county counts as split when its in-district part had under 98% of its 2024 presidential vote. Split counties are hatched on the map. Their history rows show the *part*, but their high-water marks are *whole-county*, and the page says so. The split counties are:
   - MI-4: Berrien, Calhoun, Kalamazoo, Ottawa
   - MI-10: Macomb (75%), Oakland (7%)
   - NC-5: Guilford
   - NC-11: Polk
-  - OH-7: Cuyahoga (44%), Holmes
-  - TX-15: Hidalgo (67%), Guadalupe
+  - OH-7: Cuyahoga (44%)
+  - TX-15: Hidalgo (67%)
   - TX-23: Bexar (23%), El Paso (8%)
 - **The House target** is the House race at 50% two-party in the district. The presidential and midterm baselines set the *shape* of the targets, and the shift sets the *level*.
 
@@ -264,7 +270,7 @@ In rough order of how much each could mislead you tonight:
 6. **The heuristic constants have not been backtested.** That covers the band, the 0.5–0.9 shrink, the 60% statewide carryover, and the uncertainty formula. The cleanest test would be to replay 2024 county results in counting order, for example the MI or TX Senate race, through `engine.js` with a model built without that race, and see whether the outlook called it correctly and when.
 
 7. **District details:**
-   - TX-15, TX-23 and OH-7 county parts are on 2024 lines, adjusted only at the district level.
+   - In the redrawn TX-15, TX-23 and OH-7, the split-county parts (Hidalgo, Bexar, El Paso, Cuyahoga) are 2024-lines proxies. In TX-15 this build runs about 2.5 points redder than DRA's new-line figure, so read the Hidalgo part's verdict loosely.
    - High-water marks for split counties are whole-county.
    - NC district baselines are 2024 presidential only.
 
@@ -283,6 +289,7 @@ In rough order of how much each could mislead you tonight:
 python3 tools/county-model/medsl_agg.py      # precinct files → county and district-part totals
 python3 tools/county-model/build_oe_hwm.py   # OpenElections 2006–2020 → high-water-mark races
 python3 tools/county-model/build_model.py    # → data/model/model.json
+python3 tools/county-model/redraw_cds.py     # rebuild TX-15, TX-23, OH-7 on 2026 county lists
 node    tools/county-model/geo.mjs           # county shapes → data/model/geo/*.json
 ```
 
