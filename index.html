@@ -68,6 +68,21 @@
   .exit .tile span { color: var(--muted); font-size: 12px; }
   .exit ul { margin: 8px 0 0; padding-left: 18px; }
   .exit li { margin: 3px 0; }
+  .views { display: flex; gap: 4px; }
+  .views .chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .snap { border-left: 3px solid var(--blue); }
+  .snap .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+  .snap .head h2 { margin: 0; font-size: 18px; }
+  .snap .head .sub { margin: 0; }
+  .snap .txt { font-size: 15.5px; line-height: 1.5; }
+  .snap details { margin-top: 10px; }
+  .snap details > summary { cursor: pointer; color: var(--blue); font-size: 13px; list-style: none; }
+  .snap details > summary::-webkit-details-marker { display: none; }
+  .snap details > summary::before { content: '▸ '; }
+  .snap details[open] > summary::before { content: '▾ '; }
+  .snaplog { margin-top: 8px; border-left: 2px solid var(--line); padding-left: 12px; max-height: 420px; overflow-y: auto; }
+  .snaplog .e { margin: 0 0 12px; font-size: 13.5px; }
+  .snaplog .e b { display: block; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 2px; }
   .empty { color: var(--muted); font-size: 13px; }
   .closes { color: var(--muted); font-size: 12px; }
   footer { max-width: 1280px; margin: 0 auto; padding: 16px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
@@ -87,23 +102,29 @@
       <span id="countdown"></span>
       <button id="refreshBtn" title="Fetch the latest numbers now">Refresh now</button>
     </div>
+    <div class="views" id="views"><button class="chip on" data-v="results">Results</button><button class="chip" data-v="exit">Exit polls</button></div>
     <div class="filters" id="filters"></div>
   </div>
 </header>
 <main>
   <div id="banner"></div>
-  <div class="exit" id="exitPolls"></div>
-  <div id="states"></div>
+  <div id="resultsView">
+    <div class="exit snap" id="snapshot"></div>
+    <div id="states"></div>
+  </div>
+  <div id="exitView" style="display:none">
+    <div class="exit" id="exitPolls"></div>
+  </div>
 </main>
 <footer>
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks reflect civicAPI’s race calls; confirm against AP or network calls before acting on them. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793720705"></script>
-<script src="county/engine.js?v=1793720705"></script>
-<script src="county/civic.js?v=1793720705"></script>
-<script src="county/widget.js?v=1793720705"></script>
-<script src="county/chat.js?v=1793720705"></script>
+<script src="county/vendor/d3.min.js?v=1793721283"></script>
+<script src="county/engine.js?v=1793721283"></script>
+<script src="county/civic.js?v=1793721283"></script>
+<script src="county/widget.js?v=1793721283"></script>
+<script src="county/chat.js?v=1793721283"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -300,6 +321,8 @@ window.chatExtraContext = function () {
       .map(c => `${c.name} (${partyAbbr(c.party) || c.party || '?'}) ${c.votes}${tot ? ' ' + (100 * c.votes / tot).toFixed(1) + '%' : ''}${c.winner ? ' CALLED' : ''}`).join('; ');
     lines.push(`${r.state} ${r.label || r.name} [${d.percent_reporting ?? '?'}% reporting]: ${tot ? cs : 'no votes yet'}`);
   }
+  const latest = {}; (SNAPS.entries || []).forEach(e => { latest[e.scope] = e; });
+  if (Object.keys(latest).length) { lines.push('\n## Latest AI race snapshots'); Object.values(latest).forEach(e => lines.push(`${e.scope} (${fmtClock(e.at)}): ${e.text}`)); }
   const j = window.EXIT_JSON;
   if (j) {
     lines.push('\n## Exit polls (links/notes the team posted)');
@@ -326,18 +349,53 @@ async function loadExitPolls() {
   }
 }
 
+
+// ---------- AI race snapshot (written by the GitHub job each time a state's numbers move; full log kept) ----------
+let SNAPS = { entries: [] };
+async function loadSnapshots() {
+  try { SNAPS = await fetchWithTimeout('data/model/snapshots.json?t=' + Date.now(), 10000); } catch (e) { /* none yet */ }
+  renderSnapshot();
+}
+function fmtClock(iso) { try { return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+function renderSnapshot() {
+  const el = document.getElementById('snapshot'); if (!el) return;
+  const scope = filter === 'ALL' ? 'ALL' : filter;
+  const name = scope === 'ALL' ? 'All six states' : STATE_INFO[scope].name;
+  const list = (SNAPS.entries || []).filter(e => e.scope === scope);
+  const wasOpen = el.querySelector('details') && el.querySelector('details').open;
+  if (!list.length) {
+    el.innerHTML = `<div class="head"><h2>Race snapshot · ${esc(name)}</h2></div>
+      <div class="empty">Claude writes a snapshot here each time new votes come in, starting with Georgia's first returns after 7:00 pm ET. Every version is kept, so you can scroll back through the night.</div>`;
+    return;
+  }
+  const cur = list[list.length - 1], older = list.slice(0, -1).reverse();
+  el.innerHTML = `<div class="head"><h2>Race snapshot · ${esc(name)}</h2><span class="sub">Claude · ${fmtClock(cur.at)} · ${list.length} update${list.length > 1 ? 's' : ''} tonight</span></div>
+    <div class="txt">${esc(cur.text)}</div>
+    ${older.length ? `<details ${wasOpen ? 'open' : ''}><summary>Earlier snapshots (${older.length})</summary><div class="snaplog">${older.map(e => `<div class="e"><b>${fmtClock(e.at)}</b>${esc(e.text)}</div>`).join('')}</div></details>` : ''}`;
+}
+
+let view = 'results';
+function setView(v) {
+  view = v;
+  document.querySelectorAll('#views button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('resultsView').style.display = v === 'results' ? '' : 'none';
+  document.getElementById('exitView').style.display = v === 'exit' ? '' : 'none';
+  document.getElementById('filters').style.display = v === 'results' ? '' : 'none';
+}
+document.querySelectorAll('#views button').forEach(b => b.onclick = () => setView(b.dataset.v));
+
 function buildFilters() {
   const f = document.getElementById('filters');
   const opts = ['ALL', ...STATE_ORDER];
   f.innerHTML = opts.map(o => `<button class="chip ${o === filter ? 'on' : ''}" data-f="${o}">${o === 'ALL' ? 'All states' : o}</button>`).join('');
-  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; buildFilters(); render(); });
+  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; buildFilters(); render(); renderSnapshot(); });
 }
 
 function tick() {
   if (!nextAt) return;
   const s = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
   document.getElementById('countdown').textContent = loading ? '' : `Next update in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  if (s === 0 && !loading) { loadAll(); loadExitPolls(); }
+  if (s === 0 && !loading) { loadAll(); loadExitPolls(); loadSnapshots(); }
 }
 
 (async function init() {
@@ -351,10 +409,12 @@ function tick() {
   }
   render();
   loadExitPolls();
+  loadSnapshots();
   await loadAll();
   setInterval(tick, 1000);
-  document.getElementById('refreshBtn').onclick = () => { loadAll(); loadExitPolls(); };
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() > nextAt) { loadAll(); loadExitPolls(); } });
+  setInterval(loadSnapshots, 90 * 1000);
+  document.getElementById('refreshBtn').onclick = () => { loadAll(); loadExitPolls(); loadSnapshots(); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() > nextAt) { loadAll(); loadExitPolls(); loadSnapshots(); } });
 })();
 </script>
 </body>

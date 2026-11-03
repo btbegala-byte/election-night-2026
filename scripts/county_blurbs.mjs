@@ -20,24 +20,32 @@ const model = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/model/model.json'
 const prev = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT)) : { entries: {} };
 const C = require(path.join(CODE, 'county/civic.js'));
 const live = {};   // raceKey -> race (engine shape)
+const RACES = JSON.parse(fs.readFileSync(path.join(ROOT, 'races.json'))).races || [];
+const RAW = {};    // civicAPI race id -> raw JSON (every race on the dashboard, for the race snapshots)
 async function loadLive() {
-  if (process.env.CT_LIVE_DIR) {   // test mode: civicAPI-shaped files named <id>.json
-    const idx = C.buildIndex(JSON.parse(fs.readFileSync(path.join(ROOT, 'races.json'))));
-    for (const [k, id] of Object.entries(idx)) {
+  const idx = C.buildIndex({ races: RACES });
+  const byId = Object.fromEntries(Object.entries(idx).map(([k, id]) => [id, k]));
+  const getOne = async id => {
+    if (process.env.CT_LIVE_DIR) {   // test mode: civicAPI-shaped files named <id>.json
       const f = path.join(process.env.CT_LIVE_DIR, `${id}.json`);
-      if (fs.existsSync(f)) live[k] = C.toRace(JSON.parse(fs.readFileSync(f)), k);
+      return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f)) : null;
     }
-    return;
-  }
-  const idx = C.buildIndex(JSON.parse(fs.readFileSync(path.join(ROOT, 'races.json'))));
-  const keys = Object.keys(idx).filter(k => model.geos[k] || model.geos[k.slice(0, 2)]);
-  await Promise.all(keys.map(async k => {
     for (let a = 0; a < 2; a++) {
       try {
-        const r = await fetch(C.API + idx[k], { signal: AbortSignal.timeout(25000) });
+        const r = await fetch(C.API + id, { signal: AbortSignal.timeout(25000) });
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        live[k] = C.toRace(await r.json(), k); return;
-      } catch (e) { if (a) console.error('civicAPI fail', k, e.message); }
+        return await r.json();
+      } catch (e) { if (a) console.error('civicAPI fail', id, e.message); }
+    }
+    return null;
+  };
+  const queue = RACES.map(r => r.id);
+  await Promise.all([1, 2, 3, 4, 5, 6].map(async () => {
+    while (queue.length) {
+      const id = queue.shift(); const j = await getOne(id);
+      if (!j) continue;
+      RAW[id] = j;
+      if (byId[id]) live[byId[id]] = C.toRace(j, byId[id]);
     }
   }));
 }
@@ -162,3 +170,71 @@ if (!DRY) {
   fs.writeFileSync(OUT, JSON.stringify(out));
   console.log('wrote', OUT);
 }
+
+// ---------- Race snapshots: one per state + one overall, written whenever that state's numbers move ----------
+const SNAP = path.join(ROOT, 'data/model/snapshots.json');
+const STATES = { GA: 'Georgia', NC: 'North Carolina', OH: 'Ohio', MI: 'Michigan', TX: 'Texas', IA: 'Iowa' };
+const snaps = fs.existsSync(SNAP) ? JSON.parse(fs.readFileSync(SNAP)) : { entries: [] };
+const lastFor = scope => { for (let i = snaps.entries.length - 1; i >= 0; i--) if (snaps.entries[i].scope === scope) return snaps.entries[i]; return null; };
+const abbr = p => { const x = String(p || '').toLowerCase(); return x.startsWith('dem') ? 'D' : x.startsWith('rep') ? 'R' : x.startsWith('lib') ? 'L' : x.startsWith('green') ? 'G' : x.startsWith('ind') ? 'I' : (p || '?'); };
+
+function stateFacts(st) {
+  const lines = []; let votes = 0;
+  for (const r of RACES.filter(x => x.state === st)) {
+    const d = RAW[r.id]; if (!d || !d.candidates) continue;
+    const tot = d.candidates.reduce((a, c) => a + (+c.votes || 0), 0); votes += tot;
+    if (!tot) continue;
+    const cs = d.candidates.filter(c => +c.votes > 0).sort((a, b) => b.votes - a.votes).slice(0, 3)
+      .map(c => `${c.name} (${abbr(c.party)}) ${c.votes} ${(100 * c.votes / tot).toFixed(1)}%${c.winner ? ' CALLED' : ''}`).join('; ');
+    lines.push(`${r.label || r.name}${r.target ? ' [SAM target]' : ''} [${d.percent_reporting ?? '?'}% reporting]: ${cs}`);
+  }
+  const model = [];
+  for (const [id, geo] of Object.entries(model_geos())) {
+    if (geo.state !== st) continue;
+    for (const rk of geo.type === 'cd' ? ['HOUSE'] : geo.races) {
+      const rid = geo.type === 'cd' ? id : `${id}-${rk}`;
+      if (!live[rid]) continue;
+      const res = E.compute(geo, live[rid], { target: 0.5 });
+      if (res.nReporting) model.push(geoFacts(geo, res, rk));
+    }
+  }
+  return { votes, text: (lines.length ? 'Race totals:\n' + lines.join('\n') : 'No votes yet.') + (model.length ? '\n\nCounty win-pace model:\n' + model.join('\n\n') : '') };
+}
+function model_geos() { return model.geos; }
+
+const SNAP_INSTRUCTIONS = `You write the "race snapshot" at the top of an election-night results dashboard for a small Democratic-aligned team. Write from the data only; never invent numbers or calls. "Win pace" is the two-party Dem share a county or state must hit for a Dem win; the projection is the team's own model, not a race call, so call it "our model" when you cite it. Results are unofficial (civicAPI).
+For each state scope: 3-5 sentences. Lead with the top-of-ticket standing and how much is counted, then whether the Dem is on, ahead of, or behind win pace and which counties are driving it, then the SAM target districts, then any notable down-ballot result. If a previous snapshot is given, say in one clause what changed since then.
+For the ALL scope: 4-6 sentences across the six states: which races look good, bad or too early, and the single most important thing to watch next.
+Style: direct, specific, peer-to-peer. No cheerleading, no hedging filler, no em dashes, no rhetorical questions, no "it's not X, it's Y". Plain text, no markdown.
+Return ONLY a JSON object mapping scope to text, e.g. {"GA": "...", "ALL": "..."}. Include exactly the scopes requested.`;
+
+async function snapshots() {
+  const changed = [];
+  const facts = {};
+  for (const st of Object.keys(STATES)) {
+    const f = stateFacts(st); facts[st] = f;
+    if (!f.votes) continue;
+    const prevS = lastFor(st);
+    if (!prevS || prevS.sig !== String(f.votes)) changed.push(st);
+  }
+  if (!changed.length) { console.log('snapshots: no new votes'); return; }
+  const scopes = changed.concat(['ALL']);
+  const prompt = SNAP_INSTRUCTIONS + `\n\nScopes requested: ${scopes.join(', ')}\nTime: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET\n\n` +
+    Object.keys(STATES).filter(st => facts[st].votes).map(st => {
+      const p = lastFor(st);
+      return `=== ${st} (${STATES[st]})${changed.includes(st) ? '' : ' [no change since last snapshot; context only]'} ===\n${facts[st].text}` +
+        (p ? `\nPrevious ${st} snapshot (${p.at}): ${p.text}` : '');
+    }).join('\n\n') + (lastFor('ALL') ? `\n\nPrevious ALL snapshot (${lastFor('ALL').at}): ${lastFor('ALL').text}` : '');
+  if (DRY) { console.log(prompt.slice(0, 3000)); return; }
+  let reply;
+  try { reply = parseJSON(await callClaude(prompt)); } catch (e) { console.error('snapshot Claude failed:', e.message); return; }
+  const at = new Date().toISOString();
+  for (const sc of scopes) {
+    if (!reply[sc]) continue;
+    snaps.entries.push({ scope: sc, at, text: String(reply[sc]).slice(0, 1500), sig: sc === 'ALL' ? scopes.join(',') : String(facts[sc].votes), votes: sc === 'ALL' ? Object.values(facts).reduce((a, f) => a + f.votes, 0) : facts[sc].votes });
+  }
+  snaps.updated_at = at;
+  fs.writeFileSync(SNAP, JSON.stringify(snaps));
+  console.log('snapshots written:', scopes.join(','));
+}
+await snapshots();

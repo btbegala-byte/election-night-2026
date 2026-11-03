@@ -1,8 +1,8 @@
 name: County Targets – Claude blurbs
 
-# Every ~8 minutes on election night: pull county results from civicAPI, compute each county's
+# Every ~5-7 minutes on election night: pull county results from civicAPI, compute each county's
 # verdict vs. win pace (county/engine.js), have Claude Code write the county notes and outlooks,
-# and commit data/model/blurbs.json. Uses the Max-plan token in the CLAUDE_CODE_OAUTH_TOKEN secret.
+# and commit data/model/blurbs.json. Also writes race snapshots (data/model/snapshots.json, an append-only log). Uses the Max-plan token in the CLAUDE_CODE_OAUTH_TOKEN secret.
 
 on:
   workflow_dispatch:
@@ -61,15 +61,15 @@ jobs:
           while [ "$(date +%s)" -lt "$end" ]; do
             git pull --rebase --quiet origin main || git rebase --abort || true
             node scripts/county_blurbs.mjs || echo "::warning::blurb run failed"
-            if [ -f data/model/blurbs.json ]; then
-              git add data/model/blurbs.json
+            if [ -f data/model/blurbs.json ] || [ -f data/model/snapshots.json ]; then
+              for f in data/model/blurbs.json data/model/snapshots.json; do [ -f "$f" ] && git add "$f"; done
               if ! git diff --cached --quiet; then
-                git commit -q -m "County blurbs $(date -u +%H:%MZ)"
+                git commit -q -m "AI notes + race snapshots $(date -u +%H:%MZ)"
                 for i in 1 2 3 4 5; do
                   git pull --rebase --quiet origin main && git push --quiet origin HEAD:main && break
                   sleep $((i*4))
                 done
               fi
             fi
-            sleep 420
+            sleep 300
           done
