@@ -180,7 +180,7 @@ for cd, (st, dn) in CDS.items():
                          'split': bool(split), 'part_share_of_county': round(float(min(1, whole[f])), 3),
                          'hist': ph, 'county_hist': hist_entries(st, g), 'hwm': hwm(st, g), 'hwm16': hwm(st, g, 2016)})
     ww = np.array([c['w'] for c in counties]); bb = np.array([c['b'] for c in counties])
-    model['geos'][cd] = {'id': cd, 'type': 'cd', 'name': f"{ST_NAMES[st]} {dn}{'st' if dn in (1,) else 'nd' if dn==2 else 'th'} District",
+    model['geos'][cd] = {'id': cd, 'type': 'cd', 'name': f"{ST_NAMES[st]} {dn}{'th' if 10 <= dn % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(dn % 10, 'th')} District",
                          'state': st, 'races': ['HOUSE'], 'counties': counties, 'lines_note': LINES_NOTE.get(cd, 'Lines unchanged since 2022.'),
                          'baseline_share': round(float((ww / (1 + np.exp(-bb))).sum() / ww.sum()), 4),
                          'swing_to_win': round(float(solve_swing(bb, ww, 0.5)), 4)}
