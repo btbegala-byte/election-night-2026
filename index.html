@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAM Election Night 2026</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #171e26; --panel2: #1d2630; --line: #2a3542;
+    --text: #e8edf2; --muted: #8a99a8; --navy: #17365D; --blue: #4F81BD;
+    --dem: #3a78c9; --rep: #d0464f; --other: #8a8f98; --called: #2fb36d; --warn: #e0a43a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 Calibri, "Segoe UI", system-ui, -apple-system, sans-serif; }
+  header { position: sticky; top: 0; z-index: 10; background: rgba(15,20,25,.96); border-bottom: 1px solid var(--line); backdrop-filter: blur(6px); }
+  .bar { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+  h1 span { color: var(--blue); }
+  .status { color: var(--muted); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--called); display: inline-block; margin-right: 5px; }
+  .dot.busy { background: var(--warn); animation: pulse 1s infinite; }
+  .dot.err { background: var(--rep); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  button, .chip { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  button:hover, .chip:hover { border-color: var(--blue); }
+  .chip.on { background: var(--navy); border-color: var(--blue); }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .banner { background: #2a2110; border: 1px solid #5a4415; color: #f1d39a; padding: 8px 12px; border-radius: 6px; margin-bottom: 14px; font-size: 13px; }
+  section.state { margin-bottom: 28px; }
+  .state-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--navy); padding-bottom: 6px; margin-bottom: 12px; }
+  .state-head h2 { margin: 0; font-size: 22px; }
+  .state-head .meta { color: var(--muted); font-size: 13px; }
+  .state-head a { color: var(--blue); font-size: 13px; text-decoration: none; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 14px 0 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .card.headline { border-left: 3px solid var(--blue); }
+  .card.target { border-left: 3px solid var(--warn); }
+  .card-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .race { font-weight: 700; font-size: 15px; }
+  .tag { font-size: 11px; color: var(--warn); border: 1px solid #5a4415; border-radius: 4px; padding: 0 5px; margin-left: 6px; font-weight: 400; vertical-align: 1px; }
+  .rep-pct { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .prog { height: 4px; background: var(--panel2); border-radius: 2px; margin: 6px 0 8px; overflow: hidden; }
+  .prog > div { height: 100%; background: var(--blue); }
+  .cand { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: center; padding: 3px 0; }
+  .cand .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cand .nm .pty { display: inline-block; width: 18px; text-align: center; font-size: 11px; font-weight: 700; border-radius: 3px; margin-right: 6px; color: #fff; }
+  .cand .v { color: var(--muted); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .cand .p { font-weight: 700; text-align: right; min-width: 52px; font-variant-numeric: tabular-nums; }
+  .cand .vb { grid-column: 1 / -1; height: 3px; background: var(--panel2); border-radius: 2px; overflow: hidden; }
+  .cand .vb > div { height: 100%; }
+  .win { color: var(--called); font-weight: 700; margin-left: 4px; }
+  .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; gap: 8px; }
+  .margin { font-weight: 700; }
+  .stale { color: var(--warn); }
+  details.more > summary { cursor: pointer; color: var(--blue); font-size: 13px; margin: 10px 0; list-style: none; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  .exit { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 24px; }
+  .exit h2 { margin: 0 0 4px; font-size: 18px; }
+  .exit .sub { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .exit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+  .exit a.tile { display: block; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--text); text-decoration: none; }
+  .exit a.tile:hover { border-color: var(--blue); }
+  .exit .tile b { display: block; }
+  .exit .tile span { color: var(--muted); font-size: 12px; }
+  .exit ul { margin: 8px 0 0; padding-left: 18px; }
+  .exit li { margin: 3px 0; }
+  .empty { color: var(--muted); font-size: 13px; }
+  .closes { color: var(--muted); font-size: 12px; }
+  footer { max-width: 1280px; margin: 0 auto; padding: 16px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
+  footer a { color: var(--blue); }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .filters { margin-left: 0; } h1 { font-size: 18px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>SAM <span>Election Night</span> 2026</h1>
+    <div class="status">
+      <span id="statusDot" class="dot busy"></span><span id="statusText">Loading…</span>
+      <span id="countdown"></span>
+      <button id="refreshBtn" title="Fetch the latest numbers now">Refresh now</button>
+    </div>
+    <div class="filters" id="filters"></div>
+  </div>
+</header>
+<main>
+  <div id="banner"></div>
+  <div class="exit" id="exitPolls"></div>
+  <div id="states"></div>
+</main>
+<footer>
+  Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks reflect civicAPI’s race calls; confirm against AP or network calls before acting on them. Official state results are linked in each state header.
+</footer>
+
+<script>
+const REFRESH_MS = 5 * 60 * 1000;
+const API = 'https://civicapi.org/api/v2/race/';
+const CONCURRENCY = 6;
+
+const STATE_INFO = {
+  GA: { name: 'Georgia',        closes: 'Polls close 7:00 pm ET',                     official: 'https://results.sos.ga.gov/results/public/Georgia/elections/11032026GeneralAndSpecialElection' },
+  NC: { name: 'North Carolina', closes: 'Polls close 7:30 pm ET',                     official: 'https://er.ncsbe.gov/?election_dt=11/03/2026&county_id=0&office=FED&contest=0' },
+  OH: { name: 'Ohio',           closes: 'Polls close 7:30 pm ET',                     official: 'https://liveresults.ohiosos.gov/' },
+  MI: { name: 'Michigan',       closes: 'Polls close 8:00 pm ET (9:00 pm in western U.P.)', official: 'https://mvic.sos.state.mi.us/votehistory/Index?type=C&electionDate=11-3-2026' },
+  TX: { name: 'Texas',          closes: 'Polls close 8:00 pm ET (9:00 pm ET far west)', official: 'https://results.texas-election.com/races' },
+  IA: { name: 'Iowa',           closes: 'Polls close 9:00 pm ET',                     official: 'https://electionresults.iowa.gov/IA/127077/web.345435/#/summary' },
+};
+const STATE_ORDER = ['GA', 'NC', 'OH', 'MI', 'TX', 'IA'];
+
+let RACES = [];          // from races.json
+const DATA = {};         // id -> latest race detail
+const FAILS = {};        // id -> consecutive failures
+let filter = 'ALL';
+let nextAt = 0;
+let loading = false;
+
+function partyAbbr(p) {
+  if (!p) return '';
+  const s = p.toLowerCase();
+  if (s.startsWith('dem')) return 'D';
+  if (s.startsWith('rep')) return 'R';
+  if (s.startsWith('lib')) return 'L';
+  if (s.startsWith('green') || s === 'gre') return 'G';
+  if (s.startsWith('ind')) return 'I';
+  if (/yes|no/.test(s)) return '';
+  return p.slice(0, 1).toUpperCase();
+}
+function partyColor(c) {
+  const a = partyAbbr(c.party);
+  if (c.color && /^#/.test(c.color)) return c.color;
+  return a === 'D' ? 'var(--dem)' : a === 'R' ? 'var(--rep)' : 'var(--other)';
+}
+const fmt = n => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('en-US');
+function ago(ts) {
+  if (!ts) return '';
+  const t = new Date(ts.includes('T') || ts.includes('Z') ? ts : ts.replace(' ', 'T') + 'Z');
+  if (isNaN(t)) return '';
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return 'updated just now';
+  if (m < 60) return `updated ${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `updated ${h} hr ago` : `updated ${t.toLocaleDateString()}`;
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+async function fetchWithTimeout(url, ms = 20000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal, cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+async function loadAll() {
+  if (loading) return;
+  loading = true;
+  setStatus('busy', 'Fetching latest results…');
+  const queue = RACES.map(r => r.id);
+  let ok = 0, bad = 0;
+  async function worker() {
+    while (queue.length) {
+      const id = queue.shift();
+      try {
+        DATA[id] = await fetchWithTimeout(API + id);
+        FAILS[id] = 0; ok++;
+      } catch (e) {
+        FAILS[id] = (FAILS[id] || 0) + 1; bad++;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  loading = false;
+  const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (bad === 0) setStatus('ok', `Checked ${now}`);
+  else if (ok === 0) setStatus('err', `Couldn’t reach civicAPI at ${now}; showing last numbers`);
+  else setStatus('err', `Checked ${now}; ${bad} race(s) didn’t load, showing last numbers`);
+  nextAt = Date.now() + REFRESH_MS;
+  render();
+}
+
+function setStatus(kind, text) {
+  document.getElementById('statusDot').className = 'dot' + (kind === 'busy' ? ' busy' : kind === 'err' ? ' err' : '');
+  document.getElementById('statusText').textContent = text;
+}
+
+function classify(r) {
+  const n = r.name;
+  if (r.target) return 'target';
+  if (/US Senate/.test(n) || (/Governor/.test(n) && !/Lieutenant/.test(n))) return 'headline';
+  if (/Amendment|Proposal|Retention|Question|Issue \d|Proposition|Referend/i.test(n)) return 'measure';
+  if (/Court|Justice|Judge/i.test(n)) return 'judicial';
+  return 'downballot';
+}
+
+function card(r) {
+  const d = DATA[r.id];
+  const cls = classify(r);
+  const label = r.label || r.name.replace(new RegExp('^' + STATE_INFO[r.state].name + ' '), '');
+  if (!d) {
+    return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}">
+      <div class="card-top"><div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM target</span>' : ''}</div></div>
+      <div class="empty">${FAILS[r.id] ? 'Not loading from civicAPI right now' : 'Loading…'}</div></div>`;
+  }
+  const cands = (d.candidates || []).slice().sort((a, b) => (Number(b.votes) || 0) - (Number(a.votes) || 0));
+  const total = cands.reduce((s, c) => s + (Number(c.votes) || 0), 0);
+  const shown = cands.filter((c, i) => i < 4 || c.winner);
+  const pr = Number(d.percent_reporting) || 0;
+  let marginTxt = '';
+  if (cands.length >= 2 && total > 0) {
+    const m = ((Number(cands[0].votes) - Number(cands[1].votes)) / total) * 100;
+    const a = partyAbbr(cands[0].party) || cands[0].name.split(' ').slice(-1)[0];
+    marginTxt = `${a} +${m.toFixed(1)}`;
+  }
+  const stale = FAILS[r.id] ? ' <span class="stale">(stale)</span>' : '';
+  const rows = shown.map(c => {
+    const v = Number(c.votes) || 0;
+    const p = total ? (v / total * 100) : (Number(c.percent) || 0);
+    const a = partyAbbr(c.party);
+    const col = partyColor(c);
+    return `<div class="cand">
+      <div class="nm">${a ? `<span class="pty" style="background:${col}">${a}</span>` : ''}${esc(c.name)}${c.incumbent ? ' <span class="closes">(i)</span>' : ''}${c.winner ? '<span class="win">✓ Called</span>' : ''}</div>
+      <div class="v">${fmt(v)}</div>
+      <div class="p">${total ? p.toFixed(1) + '%' : '–'}</div>
+      <div class="vb"><div style="width:${Math.min(100, p)}%;background:${col}"></div></div>
+    </div>`;
+  }).join('');
+  return `<div class="card ${cls === 'target' ? 'target' : cls === 'headline' ? 'headline' : ''}">
+    <div class="card-top">
+      <div class="race">${esc(label)}${cls === 'target' ? '<span class="tag">SAM target</span>' : ''}</div>
+      <div class="rep-pct">${pr ? pr.toFixed(0) + '% in' : 'No votes yet'}</div>
+    </div>
+    <div class="prog"><div style="width:${Math.min(100, pr)}%"></div></div>
+    ${rows || '<div class="empty">No candidates listed</div>'}
+    <div class="foot"><span>${total ? fmt(total) + ' votes' : ''}${marginTxt ? ' · <span class="margin">' + marginTxt + '</span>' : ''}</span><span>${ago(d.last_updated)}${stale}</span></div>
+  </div>`;
+}
+
+function render() {
+  const states = filter === 'ALL' ? STATE_ORDER : [filter];
+  const anyTest = RACES.some(r => DATA[r.id] && DATA[r.id].test_data);
+  document.getElementById('banner').innerHTML = anyTest
+    ? '<div class="banner">Some races are flagged as test data by civicAPI. Numbers before polls close may not be real votes.</div>' : '';
+  document.getElementById('states').innerHTML = states.map(st => {
+    const info = STATE_INFO[st];
+    const races = RACES.filter(r => r.state === st);
+    const by = k => races.filter(r => classify(r) === k);
+    const headline = by('headline'), target = by('target'), down = by('downballot'), jud = by('judicial'), meas = by('measure');
+    const block = (title, list) => list.length ? `<h3>${title}</h3><div class="grid">${list.map(card).join('')}</div>` : '';
+    const more = [block('Other statewide offices', down), block('Courts', jud), block('Ballot measures', meas)].join('');
+    return `<section class="state" id="st-${st}">
+      <div class="state-head"><h2>${info.name}</h2><span class="meta">${info.closes}</span><a href="${info.official}" target="_blank" rel="noopener">Official results ↗</a></div>
+      ${block('Top of ticket', headline)}
+      ${block('SAM target districts', target)}
+      ${more ? `<details class="more" ${filter !== 'ALL' ? 'open' : ''}><summary>▸ Down-ballot statewide races (${down.length + jud.length + meas.length})</summary>${more}</details>` : ''}
+    </section>`;
+  }).join('');
+  // Preserve open state of details across re-renders
+  document.querySelectorAll('details.more').forEach(el => {
+    const key = el.closest('section').id;
+    if (openDetails.has(key)) el.open = true;
+    el.addEventListener('toggle', () => { el.open ? openDetails.add(key) : openDetails.delete(key); });
+  });
+}
+const openDetails = new Set();
+
+async function loadExitPolls() {
+  const el = document.getElementById('exitPolls');
+  try {
+    const j = await fetchWithTimeout('exitpolls.json?t=' + Date.now(), 10000);
+    const links = (j.links || []).map(l => `<a class="tile" href="${esc(l.url)}" target="_blank" rel="noopener"><b>${esc(l.title)}</b><span>${esc(l.source || '')}${l.note ? ' · ' + esc(l.note) : ''}</span></a>`).join('');
+    const notes = (j.findings || []).map(f => `<li>${esc(f)}</li>`).join('');
+    el.innerHTML = `<h2>Exit polls</h2>
+      <div class="sub">${esc(j.status || '')}${j.updated ? ' · last updated ' + esc(j.updated) : ''}</div>
+      ${links ? `<div class="exit-grid">${links}</div>` : '<div class="empty">No exit poll links posted yet.</div>'}
+      ${notes ? `<ul>${notes}</ul>` : ''}`;
+  } catch (e) {
+    el.innerHTML = '<h2>Exit polls</h2><div class="empty">Exit poll links unavailable.</div>';
+  }
+}
+
+function buildFilters() {
+  const f = document.getElementById('filters');
+  const opts = ['ALL', ...STATE_ORDER];
+  f.innerHTML = opts.map(o => `<button class="chip ${o === filter ? 'on' : ''}" data-f="${o}">${o === 'ALL' ? 'All states' : o}</button>`).join('');
+  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; buildFilters(); render(); });
+}
+
+function tick() {
+  if (!nextAt) return;
+  const s = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
+  document.getElementById('countdown').textContent = loading ? '' : `Next update in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  if (s === 0 && !loading) { loadAll(); loadExitPolls(); }
+}
+
+(async function init() {
+  buildFilters();
+  try {
+    const j = await fetchWithTimeout('races.json?t=' + Date.now(), 15000);
+    RACES = j.races;
+  } catch (e) {
+    setStatus('err', 'Couldn’t load the race list');
+    return;
+  }
+  render();
+  loadExitPolls();
+  await loadAll();
+  setInterval(tick, 1000);
+  document.getElementById('refreshBtn').onclick = () => { loadAll(); loadExitPolls(); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() > nextAt) { loadAll(); loadExitPolls(); } });
+})();
+</script>
+</body>
+</html>
