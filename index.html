@@ -336,7 +336,7 @@ async function loadAll() {
   else setStatus('err', `Checked ${now}; ${bad} race(s) didn’t load, showing last numbers`);
   nextAt = Date.now() + REFRESH_MS;
   render();
-  if (typeof checkCelebrations === 'function') { celDataLoaded = true; checkCelebrations(); }
+  if (typeof checkCelebrations === 'function') { celDataLoaded = true; celTestCalls(); render(); checkCelebrations(); }
 }
 
 function setStatus(kind, text) {
@@ -426,8 +426,8 @@ function card(r, labelOverride) {
 function render() {
   const states = filter === 'ALL' ? STATE_ORDER : [filter];
   const anyTest = RACES.some(r => DATA[r.id] && DATA[r.id].test_data);
-  document.getElementById('banner').innerHTML = anyTest
-    ? '<div class="banner">Some races are flagged as test data by civicAPI. Numbers before polls close may not be real votes.</div>' : '';
+  document.getElementById('banner').innerHTML = (typeof CEL_TEST !== 'undefined' && CEL_TEST ? '<div class="banner">Test mode: some race calls on this page are fake (marked "AP (TEST)"). Remove <b>?celebrate=test</b> from the address to go back to real results.</div>' : '') + (anyTest
+    ? '<div class="banner">Some races are flagged as test data by civicAPI. Numbers before polls close may not be real votes.</div>' : '');
   // All states: national map + results for the office it shows. A single state: that state's full dashboard.
   const nat = document.getElementById('national');
   nat.style.display = filter === 'ALL' ? '' : 'none';
@@ -546,6 +546,7 @@ function callLine(call) {
   return `<div class="apcall">${winners.length > 1 ? '⚠ Calls disagree:' : 'Called for ' + esc(call.winner) + ' by'} ${cs.map(one).join(' · ')}</div>${why && winners.length === 1 ? `<div class="apwhy">Why: ${esc(why)}</div>` : ''}`;
 }
 async function loadApCalls() {
+  if (CEL_TEST && celTestCalls.done) return;          // test mode: keep the fake calls on screen
   try { AP = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { return; }
   render();
   checkCelebrations();
@@ -726,7 +727,7 @@ function checkCelebrations() {
     if (!call || !call.winner || call.conflict || celSeen.has(String(r.id))) continue;
     const d = DATA[r.id]; if (!d || !d.candidates) continue;              // wait until results load so we know the party
     const w = d.candidates.find(c => apNameMatch(c.name, call.winner)); if (!w) continue;
-    celSeen.add(String(r.id)); try { localStorage.setItem(CEL_KEY, JSON.stringify([...celSeen])); } catch (e) { /* ignore */ }
+    celSeen.add(String(r.id)); if (!CEL_TEST) try { localStorage.setItem(CEL_KEY, JSON.stringify([...celSeen])); } catch (e) { /* ignore */ }
     if (partyAbbr(w.party) !== 'D') continue;
     const times = (call.callers || []).map(c => Date.parse(c.found_at)).filter(x => !isNaN(x));
     const first = times.length ? Math.min(...times) : now;
@@ -741,6 +742,20 @@ function checkCelebrations() {
     });
   }
   celPrimed = true;
+}
+// ?celebrate=test runs the real pipeline: once results load, it pretends AP just called three SAM target districts
+// for their actual Democratic candidates. Nothing is saved, so real calls later tonight still celebrate.
+const CEL_TEST = new URL(location.href).searchParams.get('celebrate') === 'test';
+function celTestCalls() {
+  if (!CEL_TEST || celTestCalls.done) return; celTestCalls.done = true;
+  celSeen = new Set();
+  const now = new Date().toISOString(); let n = 0;
+  for (const r of RACES.filter(x => x.target)) {
+    const d = DATA[r.id], dem = d && (d.candidates || []).find(c => partyAbbr(c.party) === 'D'); if (!dem) continue;
+    AP.calls = AP.calls || {};
+    AP.calls[r.id] = { winner: dem.name, race: r.label, callers: [{ caller: 'AP (TEST)', winner: dem.name, called_at: 'test', source_url: location.href, source_name: 'test mode', found_at: now }] };
+    if (++n === 3) break;
+  }
 }
 if (new URL(location.href).searchParams.get('celebrate') === 'demo') setTimeout(() => {
   if (!window.CTCelebrate) return;
