@@ -123,7 +123,8 @@
       .on('click', (ev, d) => { m.county = d.id; paint(m); detail(m); });
     zl.append('g').attr('pointer-events', 'none').selectAll('path').data(fc.features.filter(f => (g.counties.find(c => c.fips === f.id) || {}).split))
       .join('path').attr('d', path).attr('fill', `url(#h-${m.st})`);
-    if (window.CTZoom) CTZoom.attach(svg.node(), zl.node(), { container: svg.node().parentNode });
+    const cityUpd = window.CTCities ? CTCities.draw(zl, proj, m.st, { svg: svg.node() }) : null;
+    if (window.CTZoom) CTZoom.attach(svg.node(), zl.node(), { container: svg.node().parentNode, onZoom: k => cityUpd && cityUpd(k) });
     m.el.querySelector('a.full').href = `county/?geo=${o.geo}${o.rk !== 'HOUSE' ? '&race=' + o.rk : ''}`;
     paint(m);
   }

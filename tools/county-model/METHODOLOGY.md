@@ -436,3 +436,13 @@ After that, a race is checked when any of these happens:
 **After the first call**, the race is rechecked every 20 minutes to pick up other desks' calls. That stops once AP and at least two other desks have called it, or two hours after the first call.
 
 **Limits.** A race is never checked more than once every 8 minutes. Each cycle checks at most 8 races in one Claude call, in priority order: Senate and governor first, then SAM targets, then other House races, then everything else. The checker runs in the background of the AI job. Calls, check history and a log are in `data/model/ap_calls.json`.
+
+## 11. Nationwide balance of power and city labels
+
+**Balance of power (All states view).** `scripts/balance.mjs` runs in the background of the GitHub job, like the race-call checker. From the first poll close (6 pm ET) it asks Claude, with web search, for the current nationwide count of called Senate and House races (AP's tally preferred, otherwise another major desk, always with a source URL) and for any live, election-night seat projection a major outlet has published (e.g. NBC's House estimate). It checks every 20 minutes until the first calls, then every 12. Replies are rejected if they have no source URL, exceed the seats on the ballot (35 Senate, 435 House), or show the called total falling by more than two. Output: `data/model/balance.json`.
+
+- Senate bars start from the 65 seats not up this year: 34 that caucus with Democrats (incl. King and Sanders) and 31 Republicans. Democrats need 51; Republicans keep control at 50 with the vice president.
+- House: 218 for control.
+- "Projected" shows a live election-night estimate when one exists, labeled with its source and time. Until then it shows Decision Desk HQ's final pre-election forecast (Nov. 3: Senate D 52–R 48, House D 241–R 194), labeled "pre-election". This is the outlet's projection, not our model's.
+
+**City labels.** Every map draws major cities from `county/cities.js` in a layer with `pointer-events: none`, so taps and hovers reach the county underneath. Tier-1 cities show at the default zoom; tier-2 cities appear when zoomed in (≥1.8×) or on a district map (which shows the cities inside the district). Labels keep a constant on-screen size, and colliding labels are dropped (larger cities win).

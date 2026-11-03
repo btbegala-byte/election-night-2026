@@ -37,7 +37,7 @@
         if (ev.type === 'dblclick') return true;
         return (!ev.ctrlKey || ev.type === 'wheel') && !ev.button;
       })
-      .on('zoom', ev => { k = ev.transform.k; layer.attr('transform', ev.transform); setTouch(); host.classList.toggle('mz-zoomed', k > 1.01); });
+      .on('zoom', ev => { k = ev.transform.k; layer.attr('transform', ev.transform); setTouch(); host.classList.toggle('mz-zoomed', k > 1.01); if (opts.onZoom) opts.onZoom(k); });
     svg.call(zoom).on('dblclick.zoom', null);
     // double-tap / double-click zooms in around the point
     svg.on('dblclick.mz', ev => { ev.preventDefault(); const p = d3.pointer(ev, svgNode); svg.transition().duration(250).call(zoom.scaleBy, 2, p); });

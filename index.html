@@ -55,7 +55,8 @@
   .card.target { border-left: 3px solid var(--warn); }
   .card-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
   .race { font-weight: 700; font-size: 15px; }
-  .tag { font-size: 11px; color: var(--warn); border: 1px solid #5a4415; border-radius: 4px; padding: 0 5px; margin-left: 6px; font-weight: 400; vertical-align: 1px; }
+  .tag { font-size: 11px; color: var(--warn); border: 1px solid #5a4415; border-radius: 4px; padding: 0 5px; font-weight: 400; white-space: nowrap; }
+  .race .tag { display: table; margin-top: 4px; }
   .rep-pct { color: var(--muted); font-size: 12px; white-space: nowrap; }
   .prog { height: 4px; background: var(--panel2); border-radius: 2px; margin: 6px 0 8px; overflow: hidden; }
   .prog > div { height: 100%; background: var(--blue); }
@@ -89,6 +90,39 @@
   .exit li { margin: 3px 0; }
   .views { display: flex; gap: 4px; }
   .views .chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  /* nationwide balance of power (All states view) */
+  .bop { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 12px; margin: 0 0 14px; }
+  .bop .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  .bop .head h2 { margin: 0; font-size: 18px; }
+  .bop .head .sub { color: var(--muted); font-size: 13px; }
+  .bop .ch { margin-top: 12px; }
+  .bop .nums { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+  .bop .side { line-height: 1.1; }
+  .bop .side.r { text-align: right; }
+  .bop .side b { font-size: 26px; font-weight: 700; }
+  .bop .side.d b { color: var(--dem); } .bop .side.r b { color: var(--rep); }
+  .bop .side span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .bop .side span + span { margin-top: 0; }
+  .bop .mid { text-align: center; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+  .bop .mid span { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+  .bop .bbar { position: relative; height: 22px; border-radius: 5px; background: #2a3542; margin: 8px 0 4px; overflow: visible; }
+  .bop .seg { position: absolute; top: 0; bottom: 0; transition: width .6s ease; }
+  .bop .seg.d { left: 0; background: var(--dem); border-radius: 5px 0 0 5px; }
+  .bop .seg.r { right: 0; background: var(--rep); border-radius: 0 5px 5px 0; }
+  .bop .seg.hold { opacity: .5; }
+  .bop .seg.i { background: var(--other); }
+  .bop .maj { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--text); margin-left: -1px; }
+  .bop .proj { position: absolute; top: -9px; width: 0; height: 0; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--warn); border-bottom: 0; }
+  .bop .proj::after { content: ''; position: absolute; left: -1px; top: 0; width: 2px; height: 31px; background-image: linear-gradient(var(--warn) 50%, transparent 0); background-size: 2px 4px; }
+  .bop .foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12.5px; }
+  .bop .projline { margin-top: 5px; font-size: 13.5px; }
+  .bop .projline .k { color: var(--warn); font-weight: 700; }
+  .bop .projline a, .bop .src a { color: var(--blue); }
+  .bop .won { margin-top: 4px; font-weight: 700; color: var(--called); font-size: 13.5px; }
+  .bop .src { margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .bop .key { display: inline-flex; gap: 12px; flex-wrap: wrap; }
+  .bop .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+  @media (max-width: 600px) { .bop .side b { font-size: 22px; } .bop .mid span { display: none; } }
   .snap { border-left: 3px solid var(--blue); }
   .snap .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
   .snap .head h2 { margin: 0; font-size: 18px; }
@@ -128,6 +162,7 @@
 <main>
   <div id="banner"></div>
   <div id="resultsView">
+    <div class="bop" id="balance" style="display:none"></div>
     <div class="exit snap" id="snapshot"></div>
     <div id="states"></div>
   </div>
@@ -139,12 +174,13 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793730423"></script>
-<script src="county/engine.js?v=1793730423"></script>
-<script src="county/civic.js?v=1793730423"></script>
-<script src="county/mapzoom.js?v=1793730423"></script>
-<script src="county/widget.js?v=1793730423"></script>
-<script src="county/chat.js?v=1793730423"></script>
+<script src="county/vendor/d3.min.js?v=1793731274"></script>
+<script src="county/engine.js?v=1793731274"></script>
+<script src="county/civic.js?v=1793731274"></script>
+<script src="county/mapzoom.js?v=1793731274"></script>
+<script src="county/cities.js?v=1793731274"></script>
+<script src="county/widget.js?v=1793731274"></script>
+<script src="county/chat.js?v=1793731274"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -436,6 +472,64 @@ function renderSnapshot() {
     ${older.length ? `<details ${wasOpen ? 'open' : ''}><summary>Earlier snapshots (${older.length})</summary><div class="snaplog">${older.map(e => `<div class="e"><b>${fmtClock(e.at)}</b>${esc(e.text)}</div>`).join('')}</div></details>` : ''}`;
 }
 
+
+// ---------- Nationwide balance of power (All states view). Data: data/model/balance.json, written by scripts/balance.mjs ----------
+const BAL_DEFAULT = {
+  senate: { total: 100, up: 35, holdover: { D: 34, R: 31 }, control: { D: 51, R: 50 } },
+  house: { total: 435, up: 435, holdover: { D: 0, R: 0 }, control: { D: 218, R: 218 } },
+  pre: { source_name: 'Decision Desk HQ final forecast', source_url: 'https://votes.decisiondeskhq.com/forecast/2026', as_of: '2026-11-03', senate: { D: 52, R: 48 }, house: { D: 241, R: 194 } },
+  called: { senate: { D: 0, R: 0, I: 0 }, house: { D: 0, R: 0, I: 0 } }, live: {}
+};
+let BAL = BAL_DEFAULT;
+async function loadBalance() {
+  try { const b = await fetchWithTimeout('data/model/balance.json?t=' + Date.now(), 10000); BAL = { ...BAL_DEFAULT, ...b, called: { ...BAL_DEFAULT.called, ...(b.called || {}) }, live: b.live || {} }; } catch (e) { /* not written yet: show the defaults */ }
+  renderBalance();
+}
+function renderBalance() {
+  const el = document.getElementById('balance'); if (!el) return;
+  el.style.display = filter === 'ALL' ? '' : 'none';
+  if (filter !== 'ALL') return;
+  const pct = (n, tot) => (100 * n / tot).toFixed(2) + '%';
+  const chamber = (key, title) => {
+    const c = BAL[key], cal = BAL.called[key] || { D: 0, R: 0, I: 0 }, tot = c.total;
+    const D = c.holdover.D + cal.D, R = c.holdover.R + cal.R, I = cal.I || 0, open = c.up - cal.D - cal.R - I;
+    const live = (BAL.live || {})[key], pre = BAL.pre && BAL.pre[key];
+    const pj = live || pre;
+    const ctrlTxt = key === 'senate' ? `${c.control.D} for Democrats · ${c.control.R} + VP for Republicans` : `${c.control.D} for control`;
+    let won = '';
+    if (D >= c.control.D) won = `Democrats have won control of the ${title}`;
+    else if (R >= c.control.R) won = key === 'senate' ? 'Republicans keep control of the Senate' : 'Republicans keep control of the House';
+    const projLine = pj ? `<div class="projline"><span class="k">▼ Projected</span> D ${pj.D} – R ${pj.R}${live && live.plus_minus ? ' (±' + live.plus_minus + ')' : ''} · ${live
+      ? `live estimate, <a href="${esc(live.source_url)}" target="_blank" rel="noopener">${esc(live.source_name)}</a>${live.as_of ? ' · ' + esc(live.as_of) : ''}`
+      : `pre-election, <a href="${esc(pre.source_url || BAL.pre.source_url)}" target="_blank" rel="noopener">${esc(BAL.pre.source_name)}</a>`}</div>` : '';
+    return `<div class="ch">
+      <div class="nums">
+        <div class="side d"><b>${D}</b><span>Democrats</span><span>${c.holdover.D ? `${c.holdover.D} not up + ${cal.D} won` : 'seats called'}</span></div>
+        <div class="mid">${title}<span>${ctrlTxt}</span></div>
+        <div class="side r"><b>${R}</b><span>Republicans</span><span>${c.holdover.R ? `${c.holdover.R} not up + ${cal.R} won` : 'seats called'}</span></div>
+      </div>
+      <div class="bbar" role="img" aria-label="${title}: Democrats ${D}, Republicans ${R}${I ? ', independents ' + I : ''}, ${open} not yet called; ${c.control.D} needed for Democratic control">
+        ${c.holdover.D ? `<div class="seg d hold" style="width:${pct(c.holdover.D, tot)}"></div>` : ''}
+        <div class="seg d" style="left:${pct(c.holdover.D, tot)};width:${pct(cal.D, tot)};border-radius:${c.holdover.D ? 0 : '5px 0 0 5px'}"></div>
+        ${c.holdover.R ? `<div class="seg r hold" style="width:${pct(c.holdover.R, tot)}"></div>` : ''}
+        <div class="seg r" style="right:${pct(c.holdover.R, tot)};width:${pct(cal.R, tot)};border-radius:${c.holdover.R ? 0 : '0 5px 5px 0'}"></div>
+        ${I ? `<div class="seg i" style="left:${pct(D, tot)};width:${pct(I, tot)}"></div>` : ''}
+        <div class="maj" style="left:${pct(key === 'senate' ? 50 : c.control.D - 0.5, tot)}" title="${ctrlTxt}"></div>
+        ${pj ? `<div class="proj" style="left:${pct(pj.D, tot)}" title="Projected: D ${pj.D} – R ${pj.R}"></div>` : ''}
+      </div>
+      <div class="foot"><span>${cal.D + cal.R + I} of ${c.up} called${I ? ` · ${I} independent` : ''}</span><span>${open} not yet called</span></div>
+      ${projLine}
+      ${won ? `<div class="won">✓ ${won}</div>` : ''}
+    </div>`;
+  };
+  const cs = BAL.called || {};
+  el.innerHTML = `<div class="head"><h2>Balance of power · nationwide</h2><span class="sub">${BAL.updated_at ? 'Calls as of ' + fmtClock(BAL.updated_at) : 'No races called yet'}</span></div>
+    ${chamber('senate', 'Senate')}
+    ${chamber('house', 'House')}
+    <div class="src"><span class="key"><span><i style="background:var(--dem);opacity:.5"></i>Seats not up this year</span><span><i style="background:var(--dem)"></i>Won tonight</span><span><i style="background:#2a3542"></i>Not yet called</span><span><i style="background:var(--text)"></i>Majority line</span></span><br>
+    Called races ${cs.source_url ? `per <a href="${esc(cs.source_url)}" target="_blank" rel="noopener">${esc(cs.source_name || 'news report')}</a>` : 'counted from AP and network decision desks'}; checked by Claude every 12–20 minutes after polls close. The ▼ marker is the projected final seat count.</div>`;
+}
+
 let view = 'results';
 function setView(v) {
   view = v;
@@ -450,7 +544,7 @@ function buildFilters() {
   const f = document.getElementById('filters');
   const opts = ['ALL', ...STATE_ORDER];
   f.innerHTML = opts.map(o => `<button class="chip ${o === filter ? 'on' : ''}" data-f="${o}">${o === 'ALL' ? 'All states' : o}</button>`).join('');
-  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); window.scrollTo({ top: 0 }); });
+  f.querySelectorAll('button').forEach(b => b.onclick = () => { filter = b.dataset.f; syncUrl(); buildFilters(); render(); renderSnapshot(); renderBalance(); window.scrollTo({ top: 0 }); });
 }
 
 function tick() {
@@ -474,10 +568,12 @@ function tick() {
   loadExitPolls();
   loadSnapshots();
   loadApCalls();
+  loadBalance();
   await loadAll();
   setInterval(tick, 1000);
   setInterval(loadSnapshots, 90 * 1000);
   setInterval(loadApCalls, 90 * 1000);
+  setInterval(loadBalance, 90 * 1000);
   document.getElementById('refreshBtn').onclick = () => { loadAll(); loadExitPolls(); loadSnapshots(); };
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() > nextAt) { loadAll(); loadExitPolls(); loadSnapshots(); } });
 })();

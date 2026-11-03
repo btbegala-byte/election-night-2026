@@ -97,14 +97,14 @@
    "id": 87147,
    "state": "IA",
    "name": "US House 1",
-   "label": "IA-01 (US House)",
+   "label": "IA-01",
    "target": true
   },
   {
    "id": 87148,
    "state": "IA",
    "name": "US House 2",
-   "label": "IA-02 (US House)",
+   "label": "IA-02",
    "target": true
   },
   {
@@ -188,14 +188,14 @@
    "id": 87204,
    "state": "MI",
    "name": "US House 4",
-   "label": "MI-04 (US House)",
+   "label": "MI-04",
    "target": true
   },
   {
    "id": 87210,
    "state": "MI",
    "name": "US House 10",
-   "label": "MI-10 (US House)",
+   "label": "MI-10",
    "target": true
   },
   {
@@ -279,14 +279,14 @@
    "id": 87336,
    "state": "NC",
    "name": "US House 5",
-   "label": "NC-05 (US House)",
+   "label": "NC-05",
    "target": true
   },
   {
    "id": 87342,
    "state": "NC",
    "name": "US House 11",
-   "label": "NC-11 (US House)",
+   "label": "NC-11",
    "target": true
   },
   {
@@ -356,7 +356,7 @@
    "id": 87356,
    "state": "OH",
    "name": "US House 7",
-   "label": "OH-07 (US House)",
+   "label": "OH-07",
    "target": true
   },
   {
@@ -426,7 +426,7 @@
    "id": 87422,
    "state": "TX",
    "name": "US House 15",
-   "label": "TX-15 (US House)",
+   "label": "TX-15",
    "target": true,
    "group": "house"
   },
@@ -434,7 +434,7 @@
    "id": 87428,
    "state": "TX",
    "name": "US House 23",
-   "label": "TX-23 (US House)",
+   "label": "TX-23",
    "target": true,
    "group": "house"
   },
@@ -533,7 +533,7 @@
    "id": 87417,
    "state": "TX",
    "name": "US House 9",
-   "label": "TX-09 (US House)",
+   "label": "TX-09",
    "target": false,
    "group": "house"
   },
@@ -541,7 +541,7 @@
    "id": 56011,
    "state": "TX",
    "name": "US House 28",
-   "label": "TX-28 (US House)",
+   "label": "TX-28",
    "target": false,
    "group": "house"
   },
@@ -549,7 +549,7 @@
    "id": 56013,
    "state": "TX",
    "name": "US House 34",
-   "label": "TX-34 (US House)",
+   "label": "TX-34",
    "target": false,
    "group": "house"
   },
@@ -557,7 +557,7 @@
    "id": 87435,
    "state": "TX",
    "name": "US House 35",
-   "label": "TX-35 (US House)",
+   "label": "TX-35",
    "target": false,
    "group": "house"
   },
