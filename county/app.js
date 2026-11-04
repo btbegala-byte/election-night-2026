@@ -62,6 +62,14 @@
     // current geography first so it paints fast
     const cur = keys.filter(k => k === raceId(S.geoId, raceKey()) || k.startsWith(S.geoId + '-'));
     const queue = cur.concat(keys.filter(k => !cur.includes(k)));
+    // civicAPI is slow under election-night load: paint first from the copy the GitHub job saves every cycle
+    // (data/live/civic.json); a live civicAPI answer then replaces it
+    try {
+      const c = await getJSON(`${BASE}live/civic.json`, true);
+      for (const k of keys) { const j = (c.races || {})[S.index[k]]; if (j && (!S.live[k] || String(j.last_updated || '') > (S.live[k]._upd || ''))) { S.live[k] = CTCivic.toRace(j, k); S.live[k]._upd = String(j.last_updated || ''); } }
+      S.cacheAt = c.fetched_at;
+    } catch (e) { /* no backup yet */ }
+    if (S.cacheDone) { S.cacheDone(); S.cacheDone = null; }
     let ok = 0;
     const worker = async () => {
       while (queue.length) {
@@ -72,7 +80,7 @@
             const r = await fetch(API + S.index[k] + (API.endsWith('/') ? '' : '') + (qs.get('api') ? '.json' : ''), { cache: 'no-store', signal: ctl.signal });
             clearTimeout(tm);
             if (!r.ok) throw new Error(r.status);
-            S.live[k] = CTCivic.toRace(await r.json(), k); ok++; break;
+            { const jj = await r.json(); S.live[k] = CTCivic.toRace(jj, k); S.live[k]._upd = String(jj.last_updated || ''); } ok++; break;
           } catch (e) { if (a < 2) await new Promise(res => setTimeout(res, (a ? 4000 : 1500) + Math.random() * 1000)); /* else keep last good copy */ }
         }
       }
@@ -359,8 +367,12 @@
     $('search').oninput = e => { S.filter = e.target.value.toLowerCase(); renderTable(); };
     const m = S.model.method;
     $('method').innerHTML = `<b>Method.</b> Baseline county lean: ${esc(m.baseline)}. Win pace: ${esc(m.swing)}. ${esc(m.turnout)}. "Best since 2006" and "Best since 2016" are the highest Dem two-party share the county gave any presidential, Senate or governor nominee in a general election since that year. Gaps: North Carolina Senate and governor races before 2022 (except presidential) are not included; Texas 2020 Senate and Iowa 2008 Senate are missing. Historical data: MIT Election Data + Science Lab, OpenElections, county presidential returns 2008–2024. * = county split by the district line (history shown for the part inside the 2024 district).`;
-    await pullLive().catch(() => {});
+    // draw as soon as the backup copy is in; live civicAPI answers (slow on election night) repaint when they land
+    const cacheReady = new Promise(r => { S.cacheDone = r; });
+    const live = pullLive().catch(() => {});
+    await Promise.race([live, cacheReady]);
     renderTabs(); await drawMap(); update();
+    live.then(() => { renderTabs(); update(); });
     setInterval(async () => { await pullLive().catch(() => {}); renderTabs(); update(); }, REFRESH_MS);
   }
   init().catch(e => { $('statusText').textContent = 'Error: ' + e.message; console.error(e); });

@@ -50,6 +50,20 @@ async function loadLive() {
   }));
 }
 await loadLive();
+// Fallback copy of civicAPI for the dashboard: when civicAPI is slow or down under election-night load, the page
+// uses this file (served by GitHub Pages) for any race it couldn't fetch. Keeps the newest copy of each race.
+if (!DRY && !process.env.CT_LIVE_DIR) try {
+  const LIVE = path.join(ROOT, 'data/live/civic.json');
+  const prevLive = fs.existsSync(LIVE) ? JSON.parse(fs.readFileSync(LIVE)) : { races: {} };
+  const races = { ...(prevLive.races || {}) };
+  for (const [id, j] of Object.entries(RAW)) { const o = races[id]; if (!o || String(j.last_updated || '') >= String(o.last_updated || '')) races[id] = j; }
+  fs.mkdirSync(path.dirname(LIVE), { recursive: true });
+  fs.writeFileSync(LIVE, JSON.stringify({ fetched_at: new Date().toISOString(), races }));
+  // stage it so the loop's commit picks it up (the running workflow's commit step predates this file)
+  const { execSync } = await import('child_process');
+  try { execSync(`git -C "${ROOT}" add data/live/civic.json`, { stdio: 'ignore' }); } catch (e) { /* not a git checkout */ }
+  console.log('wrote fallback civic.json:', Object.keys(RAW).length, 'fresh of', Object.keys(races).length);
+} catch (e) { console.error('fallback civic.json failed', e.message); }
 if (!DRY) try { fs.writeFileSync(process.env.CT_RAW_OUT || '/tmp/ct_raw.json', JSON.stringify(RAW)); } catch (e) { /* ignore */ }
 // T1-1: archive every raw civicAPI response from this cycle (one gzipped file per cycle; the workflow pushes it to the 'archive' branch)
 if (process.env.CT_ARCHIVE_DIR && !DRY) {

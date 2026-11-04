@@ -243,16 +243,16 @@
   Unofficial results via <a href="https://civicapi.org" target="_blank" rel="noopener">civicAPI</a>. Vote counts refresh automatically every 5 minutes while this page is open. “Called” marks show which decision desks (AP, NBC, CNN, ABC, CBS, Fox News, Decision Desk HQ) have called a race, found from news reports and linked to each source; click through to confirm. civicAPI race calls are not used. Official state results are linked in each state header.
 </footer>
 
-<script src="county/vendor/d3.min.js?v=1793752248"></script>
-<script src="county/engine.js?v=1793752248"></script>
-<script src="county/civic.js?v=1793752248"></script>
-<script src="county/mapzoom.js?v=1793752248"></script>
-<script src="county/extras.js?v=1793752248"></script>
-<script src="county/cities.js?v=1793752248"></script>
-<script src="county/national.js?v=1793752248"></script>
-<script src="county/widget.js?v=1793752248"></script>
-<script src="county/celebrate.js?v=1793752248"></script>
-<script src="county/chat.js?v=1793752248"></script>
+<script src="county/vendor/d3.min.js?v=1793752424"></script>
+<script src="county/engine.js?v=1793752424"></script>
+<script src="county/civic.js?v=1793752424"></script>
+<script src="county/mapzoom.js?v=1793752424"></script>
+<script src="county/extras.js?v=1793752424"></script>
+<script src="county/cities.js?v=1793752424"></script>
+<script src="county/national.js?v=1793752424"></script>
+<script src="county/widget.js?v=1793752424"></script>
+<script src="county/celebrate.js?v=1793752424"></script>
+<script src="county/chat.js?v=1793752424"></script>
 <script>
 const REFRESH_MS = 5 * 60 * 1000;
 const API = 'https://civicapi.org/api/v2/race/';
@@ -357,7 +357,7 @@ function fetchRace(id, front) {
       }
       FAILS[id] = 0; FETCHED[id] = Date.now(); return true;
     }
-    catch (e) { FAILS[id] = (FAILS[id] || 0) + 1; return false; }
+    catch (e) { FAILS[id] = (FAILS[id] || 0) + 1; if (!loading) loadCache(); return false; }
     finally { release(); delete inflight[id]; scheduleRender(); }
   })();
   return inflight[id];
@@ -394,18 +394,40 @@ function ensureView() {
   viewIds().filter(id => !FETCHED[id] || now - FETCHED[id] > REFRESH_MS).forEach(id => fetchRace(id, true));
 }
 
+// Fallback: the GitHub job saves its civicAPI pull to data/live/civic.json every cycle (~7 min). civicAPI slows to
+// 20-40 s a request under election-night load, so the page paints from this copy first and fills any race civicAPI
+// couldn't deliver; a newer civicAPI answer always wins (compared on civicAPI's own last_updated).
+let CACHE_AT = null;
+let cacheTry = 0;
+async function loadCache() {
+  if (Date.now() - cacheTry < 30000) return 0;
+  cacheTry = Date.now();
+  try {
+    const c = await fetchWithTimeout('data/live/civic.json?t=' + Date.now(), 20000);
+    CACHE_AT = c.fetched_at; let used = 0;
+    for (const [id, j] of Object.entries(c.races || {})) {
+      const cur = DATA[id];
+      if (!cur || String(j.last_updated || '') > String(cur.last_updated || '')) { DATA[id] = j; used++; }
+    }
+    if (used) scheduleRender();
+    return used;
+  } catch (e) { return 0; }
+}
 async function loadAll() {
   if (loading) return;
   loading = true;
   setStatus('busy', 'Fetching latest results…');
   const ids = viewIds();
+  const cacheP = loadCache();
   const res = await Promise.all(ids.map(id => fetchRace(id)));
+  await cacheP;
   const ok = res.filter(Boolean).length, bad = res.length - ok;
   loading = false;
   const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const cacheNote = CACHE_AT ? `; others from the ${new Date(CACHE_AT).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} backup copy` : '; showing last numbers';
   if (bad === 0) setStatus('ok', `Checked ${now}`);
-  else if (ok === 0) setStatus('err', `Couldn’t reach civicAPI at ${now}; showing last numbers`);
-  else setStatus('err', `Checked ${now}; ${bad} race(s) didn’t load, showing last numbers`);
+  else if (ok === 0) setStatus('err', `civicAPI is overloaded (${now})${CACHE_AT ? '; showing the ' + new Date(CACHE_AT).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' backup copy' : '; showing last numbers'}`);
+  else setStatus('err', `Checked ${now}; ${bad} race(s) slow at civicAPI${cacheNote}`);
   nextAt = Date.now() + REFRESH_MS;
   render();
   if (typeof checkCelebrations === 'function') { celDataLoaded = true; celTestCalls(); render(); checkCelebrations(); }

@@ -102,7 +102,7 @@ jobs:
               git -C /tmp/arch add raw && git -C /tmp/arch commit -qm "Raw civicAPI archive $(date -u +%H:%MZ)" && git -C /tmp/arch push -q origin archive || echo "::warning::archive push failed"
             fi
             if [ -f data/model/blurbs.json ] || [ -f data/model/snapshots.json ] || [ -f data/model/ap_calls.json ] || [ -f data/model/balance.json ]; then
-              for f in data/model/blurbs.json data/model/snapshots.json data/model/ap_calls.json data/model/balance.json data/model/alerts.json data/model/alerts_state.json data/model/youngmen.json data/model/exitpolls_data.json; do [ -f "$f" ] && git add "$f"; done
+              for f in data/model/blurbs.json data/model/snapshots.json data/model/ap_calls.json data/model/balance.json data/model/alerts.json data/model/alerts_state.json data/model/youngmen.json data/model/exitpolls_data.json data/live/civic.json; do [ -f "$f" ] && git add "$f"; done
               if ! git diff --cached --quiet; then
                 git commit -q -m "AI notes + race snapshots $(date -u +%H:%MZ)"
                 for i in 1 2 3 4 5; do
