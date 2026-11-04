@@ -715,7 +715,19 @@ function callLine(call) {
 }
 async function loadApCalls() {
   if (CEL_TEST && celTestCalls.done) return;          // test mode: keep the fake calls on screen
-  try { AP = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { return; }
+  let got = null, man = null;
+  try { got = await fetchWithTimeout('data/model/ap_calls.json?t=' + Date.now(), 10000); } catch (e) { /* none yet */ }
+  try { man = await fetchWithTimeout('data/model/manual_calls.json?t=' + Date.now(), 10000); } catch (e) { /* none */ }
+  if (!got && !man) return;
+  AP = got || { calls: {} }; AP.calls = AP.calls || {};
+  // calls verified by hand (data/model/manual_calls.json): add any decision desk the automatic checker hasn't found
+  for (const [id, m] of Object.entries((man && man.calls) || {})) {
+    const ent = AP.calls[id] = AP.calls[id] || { winner: m.winner, race: m.race, callers: [] };
+    ent.callers = ent.callers || [];
+    for (const c of m.callers || []) if (!ent.callers.some(x => x.caller === c.caller)) ent.callers.push(c);
+    const lastName = n => String(n || '').toLowerCase().split(/\s+/).pop();
+    ent.conflict = new Set(ent.callers.map(x => lastName(x.winner))).size > 1;
+  }
   render();
   checkCelebrations();
 }

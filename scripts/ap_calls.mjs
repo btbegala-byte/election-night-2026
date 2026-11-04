@@ -28,7 +28,7 @@ function parseJSON(txt) { const a = txt.indexOf('{'), b = txt.lastIndexOf('}'); 
 // called a race, but only for races where a call is plausible right now (see dueReasons). One Claude call per
 // cycle, at most AP_BATCH races. Results: data/model/ap_calls.json (calls + per-race check state + log).
 const AP_FILE = path.join(ROOT, 'data/model/ap_calls.json');
-const AP_BATCH = 8;
+const AP_BATCH = 4;   // smaller batches: with 8 the search missed most calls on election night
 // AP never calls before the LAST poll close covering a race (ET -> UTC on Nov 3/4)
 const FINAL_CLOSE = { GA: '2026-11-04T00:00:00Z', NC: '2026-11-04T00:30:00Z', OH: '2026-11-04T00:30:00Z',
   MI: '2026-11-04T02:00:00Z', IA: '2026-11-04T02:00:00Z', TX: '2026-11-04T02:00:00Z' };   // MI/TX statewide: western U.P. / El Paso close 9 pm ET
@@ -104,6 +104,8 @@ async function apCalls() {
       `Unofficial count so far: ${sn.tot ? sn.cs.slice(0, 2).map(c => `${c.name} ${c.votes}`).join(' vs ') + `, ${sn.pr}% reporting` : 'no votes yet'}. Why checking now: ${why}.`;
   }).join('\n');
   const prompt = `Check whether any major news decision desk has called (declared or projected a winner in) each race below in the November 3, 2026 U.S. general election. Use web search.
+It is now ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })} ET. These are TONIGHT's general-election results, not the March primaries: ignore any page about a primary or a nomination.
+How to search (do at least one search per race): "<leading candidate> projected to win <state> <office>", "<leading candidate> wins <state> <office> AP projects", and the networks' live blogs (CBS News, NBC News, ABC News, CNBC, Fox News). AP calls are syndicated on local TV and newspaper sites as "WASHINGTON (AP) — ... is projected to win" or "The Associated Press declared ... the winner at <time>".
 Callers that count: The Associated Press (AP), NBC News, CNN, ABC News, CBS News, Fox News, Decision Desk HQ. Outlets that publish AP's call (newspapers, local TV, NYT, Washington Post) count as an AP call: record the caller as AP and link the page you found.
 Rules:
 - Report a call ONLY if a source explicitly says that decision desk called, declared or projected the winner. Candidate victory claims, concessions, leads and "expected to win" don't count.
