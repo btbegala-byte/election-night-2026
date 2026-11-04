@@ -159,6 +159,48 @@
      "found_at": "2026-11-04T05:09:17.000Z"
     }
    ]
+  },
+  "87152": {
+   "winner": "Rob Sand",
+   "race": "IA Governor",
+   "callers": [
+    {
+     "caller": "AP",
+     "winner": "Rob Sand",
+     "called_at": null,
+     "source_url": "https://iowapublicradio.org/live-updates/2026-election",
+     "source_name": "Iowa Public Radio (AP race call)",
+     "manual": true,
+     "found_at": "2026-11-04T05:10:03.000Z"
+    },
+    {
+     "caller": "NBC News",
+     "winner": "Rob Sand",
+     "called_at": "10:14 PM CT",
+     "source_url": "https://www.yahoo.com/news/politics/articles/democrat-rob-sand-projected-win-041529911.html",
+     "source_name": "Des Moines Register",
+     "manual": true,
+     "found_at": "2026-11-04T05:10:03.000Z"
+    },
+    {
+     "caller": "Decision Desk HQ",
+     "winner": "Rob Sand",
+     "called_at": "10:14 PM CT",
+     "source_url": "https://www.yahoo.com/news/politics/articles/democrat-rob-sand-projected-win-041529911.html",
+     "source_name": "Des Moines Register",
+     "manual": true,
+     "found_at": "2026-11-04T05:10:03.000Z"
+    },
+    {
+     "caller": "ABC News",
+     "winner": "Rob Sand",
+     "called_at": null,
+     "source_url": "https://abcnews.com/Politics/iowa-2026-live-midterm-election-results/story?id=136761477",
+     "source_name": "ABC News",
+     "manual": true,
+     "found_at": "2026-11-04T05:10:03.000Z"
+    }
+   ]
   }
  }
 }
