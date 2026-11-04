@@ -896,7 +896,7 @@ function ymLine() {
 // ---------- Celebrate: full-screen confetti when a SAM target race is called for a Democrat (county/celebrate.js) ----------
 // Plays once per race per browser. On page load it only celebrates calls made in the last 30 minutes, so
 // someone opening the page late doesn't get a backlog; after that, every new call celebrates. ?celebrate=demo previews it.
-const CEL_KEY = 'sam-celebrated';
+const CEL_KEY = 'sam-celebrated-2';   // bumped 12:10 am so the hand-added calls play for everyone on refresh
 let celSeen = new Set(); try { celSeen = new Set(JSON.parse(localStorage.getItem(CEL_KEY) || '[]')); } catch (e) { /* storage off */ }
 let celPrimed = false;
 const ordinal = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) ? 0 : (n % 10 < 4 ? n % 10 : 0)] || 'th');
@@ -908,14 +908,14 @@ function checkCelebrations() {
   const statewide = x => !x.target && x.holder && /US Senate|^Governor$/.test(x.label || x.name);
   for (const r of RACES.filter(x => x.target || statewide(x))) {
     const call = (AP.calls || {})[r.id];
-    if (!call || !call.winner || call.conflict || celSeen.has(String(r.id))) continue;
+    if (!call || !call.winner || call.conflict || (celSeen.has(String(r.id)) && !(CEL_ALL && !celPrimed))) continue;
     const d = DATA[r.id]; if (!d || !d.candidates) continue;              // wait until results load so we know the party
     const w = d.candidates.find(c => apNameMatch(c.name, call.winner)); if (!w) continue;
     celSeen.add(String(r.id)); if (!CEL_TEST) try { localStorage.setItem(CEL_KEY, JSON.stringify([...celSeen])); } catch (e) { /* ignore */ }
     if (partyAbbr(w.party) !== 'D') continue;
     const times = (call.callers || []).map(c => Date.parse(c.found_at)).filter(x => !isNaN(x));
     const first = times.length ? Math.min(...times) : now;
-    if (!celPrimed && now - first > 30 * 60000) continue;
+    if (!celPrimed && now - first > 30 * 60000 && !CEL_ALL) continue;
     const n = +((r.name.match(/(\d+)\s*$/) || [])[1] || 0);
     const flip = r.holder && r.holder !== 'D';
     const by = (call.callers || []).map(c => c.caller).slice(0, 3);
@@ -933,6 +933,8 @@ function checkCelebrations() {
 // ?celebrate=test runs the real pipeline: once results load, it pretends AP just called two SAM target districts and a Senate race
 // for their actual Democratic candidates. Nothing is saved, so real calls later tonight still celebrate.
 const CEL_TEST = new URL(location.href).searchParams.get('celebrate') === 'test';
+// ?celebrate=all replays every Democratic win among the celebrated races (target districts, Senate, governor), once per page load
+const CEL_ALL = new URL(location.href).searchParams.get('celebrate') === 'all';
 function celTestCalls() {
   if (!CEL_TEST || celTestCalls.done) return; celTestCalls.done = true;
   celSeen = new Set();
