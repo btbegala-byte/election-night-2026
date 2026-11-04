@@ -52,7 +52,7 @@ const err = (where, e) => { S.errors.push({ t: now, where, e: String(e.message |
 async function pollCivic() {
   await Promise.all(RACES.map(async R => {
     try {
-      const j = await get(CIVIC + R.civic);
+      const j = await get(CIVIC + R.civic, true, 45000);
       const party = p => String(p || '').toLowerCase().startsWith('dem') ? 'D' : String(p || '').toLowerCase().startsWith('rep') ? 'R' : 'O';
       const tot = cs => { let D = 0, Rr = 0, T = 0; for (const c of cs || []) { const v = +c.votes || 0; T += v; const p = party(c.party); if (p === 'D') D += v; else if (p === 'R') Rr += v; } return { D, R: Rr, T }; };
       let pr = +j.percent_reporting || 0; if (pr > 0 && pr <= 1) pr *= 100;

@@ -32,7 +32,7 @@ async function loadLive() {
     }
     for (let a = 0; a < 3; a++) {
       try {
-        const r = await fetch(C.API + id, { signal: AbortSignal.timeout(25000) });
+        const r = await fetch(C.API + id, { signal: AbortSignal.timeout(50000) });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return await r.json();
       } catch (e) { if (a === 2) console.error('civicAPI fail', id, e.message); else await new Promise(res => setTimeout(res, a ? 4000 : 1500)); }

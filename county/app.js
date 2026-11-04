@@ -68,7 +68,7 @@
         const k = queue.shift();
         for (let a = 0; a < 3; a++) {   // civicAPI drops some requests under load; retry twice with backoff
           try {
-            const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
+            const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 50000);
             const r = await fetch(API + S.index[k] + (API.endsWith('/') ? '' : '') + (qs.get('api') ? '.json' : ''), { cache: 'no-store', signal: ctl.signal });
             clearTimeout(tm);
             if (!r.ok) throw new Error(r.status);
